@@ -287,6 +287,7 @@ export function _updateCctvSyncChip(loading, enabled) {
     // The counter is left plain on purpose: it ticks every few frames
     // during a grid load, and flapping it would read as a slot machine.
     this._cctvSyncProgress.textContent = `${loaded}/${total}`;
+    this._cctvSyncChip.dataset.state = 'loading';
     this._cctvSyncChip.classList.add('visible');
     return;
   }
@@ -296,6 +297,7 @@ export function _updateCctvSyncChip(loading, enabled) {
     this._cctvChipWasBusy = false;
     this.actions.setSplitFlapText(this._cctvSyncLabel, t('camera grid ready'));
     this._cctvSyncProgress.textContent = `${total}/${total}`;
+    this._cctvSyncChip.dataset.state = 'complete';
     this._cctvSyncChip.classList.add('visible');
     clearTimeout(this._cctvChipHideTimer);
     this._cctvChipHideTimer = window.setTimeout(() => {

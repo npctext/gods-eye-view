@@ -108,3 +108,41 @@ for (const [status, text] of [
     assert.equal(n.field.getAttribute('aria-describedby'), null);
   });
 }
+
+test('a found destination is handed to the mobile shell after search settles', () => {
+  const n = navigation();
+  const labels = [];
+  n.owner.onSearchDestination = (label) => labels.push(label);
+  LocationNavigation.prototype._handleLocationSearchState.call(
+    n.owner,
+    { status: 'found', query: 'Paris', destination: { label: 'Paris' } },
+    { type: 'settled', generation: 7 },
+  );
+  assert.deepEqual(n.settled, [[7, { keepQuery: false }]]);
+  assert.deepEqual(labels, ['Paris']);
+});
+
+test('a successful city selection opens its mobile details after navigation', () => {
+  const selected = [];
+  const owner = {
+    services: {
+      CITY_POIS: { austin: { name: 'Austin', pois: [{}] } },
+      flyToPresetLocation: () => ({ targetPosition: 'target' }),
+    },
+    viewer: {},
+    _expandedCityId: null,
+    _activeLocationId: null,
+    _flyWithTransition: (_changed, fly) => fly({}),
+    _expandPOIRow: () => {},
+    _setActiveLocation: () => {},
+    _updatePoiHighlight: () => {},
+    _updateLocationMiniStatus: () => {},
+    onCitySelected: (name) => selected.push(name),
+  };
+  LocationNavigation.prototype._onCityPillClick.call(owner, 'austin');
+  assert.deepEqual(selected, ['Austin']);
+  assert.equal(owner._currentTarget, 'target');
+  owner._flyWithTransition = () => false;
+  LocationNavigation.prototype._onCityPillClick.call(owner, 'austin');
+  assert.deepEqual(selected, ['Austin'], 'cancelled navigation does not open details');
+});

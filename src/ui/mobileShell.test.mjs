@@ -44,11 +44,29 @@ function element(tag, document) {
     removeAttribute: (key) => attributes.delete(key),
     append(...children) {
       for (const child of children) {
+        const previous = child.parent?.children;
+        if (previous) previous.splice(previous.indexOf(child), 1);
         child.parent = node;
         child.parentElement = node;
         node.children.push(child);
         if (child.id) document.ids.set(child.id, child);
       }
+    },
+    insertBefore(child, next) {
+      const previous = child.parent?.children;
+      if (previous) previous.splice(previous.indexOf(child), 1);
+      child.parent = node;
+      child.parentElement = node;
+      const index = next ? node.children.indexOf(next) : -1;
+      node.children.splice(index < 0 ? node.children.length : index, 0, child);
+    },
+    replaceChildren(...children) {
+      for (const child of node.children) {
+        child.parent = null;
+        child.parentElement = null;
+      }
+      node.children = [];
+      node.append(...children);
     },
     remove() {
       const siblings = node.parent?.children;
@@ -82,6 +100,8 @@ function element(tag, document) {
       const matches = (child) =>
         selector === '[data-mobile-sheet]'
           ? Boolean(child.dataset.mobileSheet)
+          : selector === '.data-toggle-btn.active'
+            ? child.classList.contains('data-toggle-btn') && child.classList.contains('active')
           : child.tagName === 'BUTTON';
       const walk = (parent) => {
         for (const child of parent.children) {
@@ -99,16 +119,23 @@ function element(tag, document) {
       node.className.split(' ').includes('panel-collapse-btn'),
     focus() {
       document.activeElement = node;
+      node.dispatchEvent(new Event('focus'));
     },
     blur() {
       if (document.activeElement === node)
         document.activeElement = document.body;
     },
   });
+  Object.defineProperty(node, 'nextSibling', {
+    get() {
+      const siblings = node.parent?.children;
+      return siblings?.[siblings.indexOf(node) + 1] ?? null;
+    },
+  });
   return node;
 }
 
-const PANEL_IDS = [...new Set(Object.values(MOBILE_SHEET_PANELS).flat())];
+const PANEL_IDS = [...new Set([...Object.values(MOBILE_SHEET_PANELS).flat(), 'location-bar'])];
 
 function fixture({
   mobile = true,
@@ -131,7 +158,6 @@ function fixture({
   document.activeElement = document.body;
   const search = element('input', document);
   search.id = 'location-search';
-  document.body.append(search);
   const rails = {};
   for (const id of ['left-panel-stack', 'right-context-rail', 'command-dock']) {
     rails[id] = element('div', document);
@@ -149,8 +175,37 @@ function fixture({
     const collapse = element('button', document);
     collapse.className = 'panel-collapse-btn';
     panel.append(toggle, collapse, element('button', document));
+    if (id === 'location-bar') {
+      const popover = element('div', document);
+      popover.id = 'location-bar-popover';
+      const pois = element('div', document);
+      pois.id = 'poi-row';
+      const divider = element('div', document);
+      divider.id = 'location-bar-divider';
+      popover.append(pois, divider, search);
+      panel.append(popover);
+    }
+    if (id === 'data-panel') {
+      const handle = element('button', document);
+      handle.id = 'mobile-layers-handle';
+      const close = element('button', document);
+      close.id = 'mobile-layers-close';
+      const filter = element('div', document);
+      filter.id = 'mobile-layers-filter';
+      const all = element('button', document);
+      all.id = 'mobile-layers-all';
+      const active = element('button', document);
+      active.id = 'mobile-layers-active';
+      const count = element('span', document);
+      count.id = 'mobile-layers-active-count';
+      active.append(count);
+      filter.append(all, active);
+      const list = element('div', document);
+      list.id = 'data-toggles';
+      panel.append(handle, close, filter, list);
+    }
     const root =
-      id === 'data-panel'
+      ['data-panel', 'scene-panel'].includes(id)
         ? 'left-panel-stack'
         : ['location-bar', 'control-panel'].includes(id)
           ? 'command-dock'
@@ -164,13 +219,18 @@ function fixture({
   const frames = [];
   let closedCount = 0;
   let observed = null;
+  let layersObserved = null;
   class FakeMutationObserver {
     constructor(callback) {
-      observed = callback;
+      this.callback = callback;
     }
-    observe() {}
+    observe(target) {
+      if (target.id === 'data-toggles') layersObserved = this.callback;
+      else observed = this.callback;
+    }
     disconnect() {
-      observed = null;
+      if (observed === this.callback) observed = null;
+      if (layersObserved === this.callback) layersObserved = null;
     }
   }
   const shell = initMobileShell({
@@ -224,6 +284,7 @@ function fixture({
     viewport,
     search,
     setBodyClass,
+    mutateLayers: () => layersObserved?.(),
     collapsed,
   };
 }
@@ -241,27 +302,143 @@ test('every tab names a sheet and every sheet panel maps back to its sheet', () 
 test('pressing a tab opens its sheet, pressing it again closes it', () => {
   assert.equal(nextSheet(null, 'layers'), 'layers');
   assert.equal(nextSheet('layers', 'layers'), null);
+  assert.equal(nextSheet('layers', 'scenes'), 'scenes');
   assert.equal(nextSheet('layers', 'more'), 'more');
   assert.equal(nextSheet('layers', 'nonsense'), null);
   assert.equal(nextSheet(null, 'constructor'), null);
 });
 
-test('one sheet at a time, presented with aria-expanded and a backdrop', () => {
+test('one sheet at a time, with Layers nonmodal and other sheets using a backdrop', () => {
   const { document, shell, press, tab } = fixture();
   assert.equal(document.body.classList.contains('mobile-shell'), true);
   press('layers');
   assert.equal(shell.getSheet(), 'layers');
   assert.equal(document.body.getAttribute('data-mobile-sheet'), 'layers');
   assert.equal(tab('layers').getAttribute('aria-expanded'), 'true');
-  assert.equal(document.getElementById('mobile-sheet-backdrop').hidden, false);
+  assert.equal(document.getElementById('mobile-sheet-backdrop').hidden, true);
   press('more');
   assert.equal(shell.getSheet(), 'more');
   assert.equal(tab('layers').getAttribute('aria-expanded'), 'false');
   assert.equal(tab('more').getAttribute('aria-expanded'), 'true');
+  assert.equal(document.getElementById('mobile-sheet-backdrop').hidden, false);
   press('more');
   assert.equal(shell.getSheet(), null);
   assert.equal(document.body.getAttribute('data-mobile-sheet'), null);
   assert.equal(document.getElementById('mobile-sheet-backdrop').hidden, true);
+});
+
+test('Layers Active filter tracks enabled rows and updates when one turns off', () => {
+  const { document, press, mutateLayers } = fixture();
+  const list = document.getElementById('data-toggles');
+  const count = document.getElementById('mobile-layers-active-count');
+  const addRow = (active) => {
+    const row = element('div', document);
+    const toggle = element('button', document);
+    toggle.classList.add('data-toggle-btn');
+    if (active) toggle.classList.add('active');
+    row.append(toggle);
+    list.append(row);
+    return toggle;
+  };
+  const first = addRow(true);
+  addRow(true);
+  addRow(false);
+  mutateLayers();
+  assert.equal(count.textContent, '2');
+  press('layers');
+  list.scrollTop = 90;
+  const active = document.getElementById('mobile-layers-active');
+  active.dispatchEvent(new Event('click'));
+  assert.equal(document.body.getAttribute('data-mobile-layer-filter'), 'active');
+  assert.equal(active.getAttribute('aria-pressed'), 'true');
+  assert.equal(list.scrollTop, 0);
+  first.classList.remove('active');
+  mutateLayers();
+  assert.equal(count.textContent, '1');
+  document.getElementById('mobile-layers-all').dispatchEvent(new Event('click'));
+  assert.equal(document.body.getAttribute('data-mobile-layer-filter'), null);
+  assert.equal(active.getAttribute('aria-pressed'), 'false');
+});
+
+test('Layers handle expands over search, collapses, then closes; close button works at either height', async () => {
+  const { document, shell, press } = fixture();
+  const body = document.body;
+  const handle = document.getElementById('mobile-layers-handle');
+  const drag = (endY) => {
+    const start = new Event('touchstart');
+    start.touches = [{ identifier: 1, clientY: 100 }];
+    handle.dispatchEvent(start);
+    const move = new Event('touchmove', { cancelable: true });
+    move.touches = [{ identifier: 1, clientY: endY }];
+    handle.dispatchEvent(move);
+    const end = new Event('touchend');
+    end.touches = [];
+    end.changedTouches = [{ identifier: 1, clientY: endY }];
+    handle.dispatchEvent(end);
+  };
+  press('layers');
+  assert.equal(body.getAttribute('data-mobile-layers-expanded'), null);
+  drag(30);
+  assert.equal(body.getAttribute('data-mobile-layers-expanded'), '');
+  assert.equal(handle.getAttribute('aria-expanded'), 'true');
+  drag(170);
+  assert.equal(body.getAttribute('data-mobile-layers-expanded'), null);
+  assert.equal(shell.getSheet(), 'layers');
+  drag(170);
+  assert.equal(shell.getSheet(), null);
+  press('layers');
+  handle.dispatchEvent(new Event('click'));
+  assert.equal(body.getAttribute('data-mobile-layers-expanded'), '');
+  const toggles = element('div', document);
+  toggles.id = 'data-toggles';
+  toggles.scrollTop = 120;
+  document.getElementById('data-panel').append(toggles);
+  document.getElementById('mobile-layers-close').dispatchEvent(new Event('click'));
+  assert.equal(shell.getSheet(), 'layers');
+  assert.equal(document.getElementById('left-panel-stack').style.values.get('transform'), 'translateY(110%)');
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(shell.getSheet(), null);
+  assert.equal(body.getAttribute('data-mobile-layers-expanded'), null);
+  assert.equal(toggles.scrollTop, 0);
+  press('layers');
+  assert.equal(toggles.scrollTop, 0);
+});
+
+test('Layers follows the finger between compact and expanded heights', async () => {
+  const { document, shell, press } = fixture();
+  document.defaultView = { innerHeight: 844 };
+  document.getElementById('mobile-tab-bar').getBoundingClientRect =
+    () => ({ height: 74 });
+  const root = document.getElementById('left-panel-stack');
+  const handle = document.getElementById('mobile-layers-handle');
+  const touch = (type, y) => {
+    const event = new Event(type, { cancelable: true });
+    event.touches = type === 'touchend' ? [] : [{ identifier: 1, clientY: y }];
+    event.changedTouches = [{ identifier: 1, clientY: y }];
+    handle.dispatchEvent(event);
+    return event;
+  };
+  press('layers');
+  touch('touchstart', 450);
+  assert.equal(touch('touchmove', 350).defaultPrevented, true);
+  assert.equal(document.body.getAttribute('data-mobile-layers-dragging'), '');
+  const growingHeight = Number.parseFloat(root.style.values.get('height'));
+  assert.ok(growingHeight > 380 && growingHeight < 844);
+  touch('touchend', 350);
+  assert.equal(document.body.getAttribute('data-mobile-layers-expanded'), '');
+  assert.equal(root.style.values.has('height'), false);
+  touch('touchstart', 50);
+  touch('touchmove', 250);
+  const shrinkingHeight = Number.parseFloat(root.style.values.get('height'));
+  assert.ok(shrinkingHeight > 380 && shrinkingHeight < 844);
+  touch('touchend', 250);
+  assert.equal(document.body.getAttribute('data-mobile-layers-expanded'), null);
+  touch('touchstart', 450);
+  touch('touchmove', 550);
+  assert.equal(root.style.values.get('transform'), 'translateY(100px)');
+  touch('touchend', 550);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(shell.getSheet(), null);
 });
 
 test('sheets borrow panels and put them back exactly as they were', () => {
@@ -271,10 +448,10 @@ test('sheets borrow panels and put them back exactly as they were', () => {
   press('cameras');
   assert.equal(collapsed('cctv-panel'), false);
   assert.equal(collapsed('street-level-panel'), false);
-  press('search');
+  press('layers');
   assert.equal(collapsed('cctv-panel'), true, 'Cameras put back on switch');
-  assert.equal(collapsed('location-bar'), false);
-  press('search');
+  assert.equal(collapsed('data-panel'), false);
+  press('layers');
   for (const id of PANEL_IDS)
     assert.equal(collapsed(id), !kept.includes(id), `${id} is back as it was`);
   // Nothing a sheet does is the user's choice, persisted or shared.
@@ -286,6 +463,18 @@ test('sheets borrow panels and put them back exactly as they were', () => {
   }
   // Already-open panels are not touched.
   assert.ok(!calls.some(({ panelId }) => kept.includes(panelId)));
+});
+
+test('Layers and Scenes open only their own panels', () => {
+  const { press, collapsed } = fixture();
+  press('layers');
+  assert.equal(collapsed('data-panel'), false);
+  assert.equal(collapsed('scene-panel'), true);
+  press('scenes');
+  assert.equal(collapsed('data-panel'), true);
+  assert.equal(collapsed('scene-panel'), false);
+  press('scenes');
+  assert.equal(collapsed('scene-panel'), true);
 });
 
 test('a panel the user changes inside a sheet stays as they left it', () => {
@@ -309,13 +498,83 @@ test('a panel the user changes inside a sheet stays as they left it', () => {
   assert.equal(collapsed('cctv-panel'), false);
 });
 
+test('mobile search uses the existing input and returns it to the dock on desktop', () => {
+  const { document, resize, search, shell } = fixture();
+  assert.equal(document.getElementById('mobile-search-bar').contains(search), true);
+  assert.equal(document.getElementById('location-bar').contains(search), false);
+  resize(false);
+  assert.equal(document.getElementById('location-bar').contains(search), true);
+  resize(true);
+  assert.equal(document.getElementById('mobile-search-bar').contains(search), true);
+  shell.destroy();
+  assert.equal(document.getElementById('location-bar').contains(search), true);
+  assert.equal(document.getElementById('mobile-search-bar'), null);
+});
+
+test('search opens over the map without a backdrop and closes with X or Escape', () => {
+  const { document, search } = fixture();
+  const body = document.body;
+  const open = () => body.getAttribute('data-mobile-search-open') !== null;
+  assert.equal(document.getElementById('mobile-search-backdrop'), null);
+  search.focus();
+  assert.equal(open(), true);
+  document.getElementById('mobile-search-close').dispatchEvent(new Event('click'));
+  assert.equal(open(), false);
+  assert.equal(document.activeElement, body);
+  search.focus();
+  const escape = new Event('keydown', { cancelable: true });
+  escape.key = 'Escape';
+  document.dispatchEvent(escape);
+  assert.equal(escape.defaultPrevented, true);
+  assert.equal(open(), false);
+});
+
+test('city selection closes search and reuses the existing POI buttons in details', () => {
+  const { document, search, resize, shell } = fixture();
+  const pois = document.getElementById('poi-row');
+  search.focus();
+  shell.showCity('Austin');
+  assert.equal(document.body.getAttribute('data-mobile-search-open'), null);
+  assert.equal(search.value, 'Austin');
+  assert.equal(document.getElementById('mobile-details-title').textContent, 'Austin');
+  assert.equal(document.getElementById('mobile-details-content').contains(pois), true);
+  assert.equal(document.body.getAttribute('data-mobile-details'), '');
+  document.getElementById('mobile-details-close').dispatchEvent(new Event('click'));
+  assert.equal(document.body.getAttribute('data-mobile-details'), null);
+  assert.equal(search.value, '', 'closing details restores the search placeholder');
+  assert.equal(document.body.getAttribute('data-mobile-search-typing'), null);
+  search.focus();
+  shell.showDestination('Paris');
+  assert.equal(search.value, 'Paris');
+  assert.equal(document.body.getAttribute('data-mobile-search-open'), null);
+  resize(false);
+  assert.equal(document.getElementById('location-bar-popover').contains(pois), true);
+});
+
+test('the details handle closes on a downward swipe', () => {
+  const { document, search, shell } = fixture();
+  const handle = document.getElementById('mobile-details').children[0];
+  const touch = (type, y) => {
+    const event = new Event(type, { cancelable: true });
+    event.touches = type === 'touchend' ? [] : [{ identifier: 1, clientY: y }];
+    handle.dispatchEvent(event);
+  };
+  shell.showCity('London');
+  touch('touchstart', 20);
+  touch('touchmove', 50);
+  touch('touchend', 50);
+  assert.equal(document.body.getAttribute('data-mobile-details'), '');
+  touch('touchstart', 20);
+  touch('touchmove', 100);
+  touch('touchend', 100);
+  assert.equal(document.body.getAttribute('data-mobile-details'), null);
+  assert.equal(search.value, '');
+});
+
 test('focus moves into the sheet and returns to the tab on close', () => {
   const { document, press, search, tab } = fixture();
-  press('search');
+  search.focus();
   assert.equal(document.activeElement, search);
-  press('search');
-  assert.equal(document.activeElement, tab('search'));
-
   press('layers');
   const dataPanel = document.getElementById('data-panel');
   // The first visible control that is not the panel's own collapse button.
@@ -417,11 +676,12 @@ test('surfaces that own the screen close sheets; scene playback does not', () =>
     press('layers');
     assert.equal(shell.getSheet(), null, `${mode} keeps sheets closed`);
   }
-  // Scene STOP lives in the Scenes panel of the Layers sheet.
+  // Scene STOP lives in the Scenes sheet.
   const playback = fixture();
   playback.setBodyClass('scene-playback-mode');
-  playback.press('layers');
-  assert.equal(playback.shell.getSheet(), 'layers');
+  playback.press('scenes');
+  assert.equal(playback.shell.getSheet(), 'scenes');
+  assert.equal(playback.collapsed('scene-panel'), false);
 });
 
 test('desktop widths never see the shell; crossing to desktop restores it', () => {
@@ -537,7 +797,7 @@ function touchEvent(
 }
 
 test('downward sheet pull closes through borrowed-panel lifecycle and returns tab focus', () => {
-  for (const sheet of Object.keys(MOBILE_SHEET_PANELS)) {
+  for (const sheet of Object.keys(MOBILE_SHEET_PANELS).filter((name) => name !== 'layers')) {
     const phone = fixture();
     const { document, shell, press, tab } = phone;
     press(sheet);
@@ -842,8 +1102,8 @@ test('failed mobile Contacts entry uses the existing notice and cancelled/dispos
 
 test('a slow downward pull is claimed before Android native scroll takes ownership', () => {
   const { document, shell, press } = fixture();
-  press('layers');
-  const panel = document.getElementById('data-panel');
+  press('scenes');
+  const panel = document.getElementById('scene-panel');
   touchEvent(document, 'touchstart', panel, { y: 100 });
   assert.equal(
     touchEvent(document, 'touchmove', panel, { y: 102 }).defaultPrevented,

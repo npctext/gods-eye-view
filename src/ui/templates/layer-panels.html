@@ -3,12 +3,23 @@
   <div id="data-panel" class="panel-collapsible collapsed active" data-panel-id="data-panel">
     <div class="panel-glow"></div>
     <div class="data-panel-inner">
+      <button id="mobile-layers-handle" class="mobile-details-handle" type="button" aria-label="Expand layers" aria-expanded="false" data-i18n-aria-label></button>
+      <div class="mobile-details-header mobile-layers-header">
+        <span class="mobile-layers-title"><span class="mobile-layers-title-icon" aria-hidden="true"></span><span data-i18n>LAYERS</span></span>
+        <button id="mobile-layers-close" class="mobile-details-close" type="button" aria-label="Close" data-i18n-aria-label></button>
+      </div>
+      <div id="mobile-layers-filter" role="group" aria-label="Filter layers">
+        <button id="mobile-layers-all" type="button" aria-pressed="true" data-i18n>All</button>
+        <button id="mobile-layers-active" type="button" aria-pressed="false"><span data-i18n>Active</span><span id="mobile-layers-active-count">0</span></button>
+      </div>
+      <div class="mobile-details-divider mobile-layers-divider"></div>
       <div class="panel-header">
         <span class="panel-title" data-i18n>DATA LAYERS</span>
         <span class="panel-divider"></span>
         <button class="panel-collapse-btn" data-collapse-target="data-panel" title="Collapse panel" data-i18n-title>+</button>
       </div>
       <div id="data-toggles" class="data-toggle-list"></div>
+      <div id="mobile-layers-empty" data-i18n>No active layers</div>
     </div>
   </div>
 

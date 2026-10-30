@@ -116,8 +116,9 @@ export function localizeLoadingPresentation(presentation) {
   };
 }
 export class ShellFeedback {
-  constructor({ readLayers }) {
+  constructor({ readLayers, retryLayers = null }) {
     this.readLayers = readLayers;
+    this.retryLayers = retryLayers;
     this.destroyed = false;
     this._loadingFeedbackState = createLoadingFeedbackState();
     this._trafficSyncFeedbackState = createTrafficSyncFeedbackState();
@@ -138,6 +139,21 @@ export class ShellFeedback {
     this._globalLoadingDetail = document.getElementById(
       'global-loading-detail',
     );
+    this._globalLoadingRetry = document.getElementById('global-loading-retry');
+    this._retryFailedIds = [];
+    this._onRetry = () => {
+      if (!this._retryFailedIds.length || !this.retryLayers) return;
+      const ids = [...this._retryFailedIds];
+      this._globalLoadingRetry.disabled = true;
+      Promise.resolve(this.retryLayers(ids))
+        .catch(() => {
+          if (!this.destroyed) this._showToast(t('Retry failed'));
+        })
+        .finally(() => {
+          if (!this.destroyed) this._globalLoadingRetry.disabled = false;
+        });
+    };
+    this._globalLoadingRetry?.addEventListener('click', this._onRetry);
     this._trafficSyncChip = document.getElementById('traffic-sync-chip');
     this._trafficSyncLabel = document.getElementById('traffic-sync-label');
     this._trafficSyncProgress = document.getElementById(
@@ -197,6 +213,7 @@ export class ShellFeedback {
       this._trafficSyncProgress.textContent = presentation.progressText;
     }
     this._trafficSyncChip.classList.toggle('visible', presentation.visible);
+    this._trafficSyncChip.dataset.state = presentation.busy ? 'loading' : 'complete';
   }
 
   _updateGlobalLoadingFeedback(now = performance.now()) {
@@ -234,16 +251,37 @@ export class ShellFeedback {
     this._globalLoadingStatus.hidden = !presentation;
     if (!presentation) {
       delete this._globalLoadingStatus.dataset.state;
+      this._retryFailedIds = [];
       return;
     }
     this._globalLoadingStatus.dataset.state = presentation.state;
+    this._retryFailedIds = presentation.state === 'error'
+      ? [...new Set([
+          ...(this._loadingFeedbackState.failedEventIds || []),
+          ...summary.records.filter((record) =>
+            this._loadingFeedbackState.activeIds.includes(record.id) &&
+            (record.error || record.unavailable || record.keyRequired)
+          ).map((record) => record.id),
+        ])]
+      : [];
+    if (this._globalLoadingRetry)
+      this._globalLoadingRetry.hidden = !this.retryLayers || !this._retryFailedIds.length;
     // Split-flap the LABEL only ("LOADING LIVE DATA" -> "LOAD COMPLETE").
     // setSplitFlapText is a no-op when the text is unchanged, which matters
     // here: this runs on every 60 ms and 500 ms tick. The detail line is the
     // live layer roster inside an ellipsised, width-capped span — flapping a
     // list that churns as layers join would be noise, not delight.
-    setSplitFlapText(this._globalLoadingLabel, localized.label);
-    this._globalLoadingDetail.textContent = localized.detail;
+    setSplitFlapText(
+      this._globalLoadingLabel,
+      document.body?.classList?.contains?.('mobile-shell') &&
+        presentation.state === 'complete' &&
+        presentation.label === 'LOAD COMPLETE'
+        ? t('LIVE DATA UPDATED')
+        : localized.label,
+    );
+    this._globalLoadingDetail.textContent = localized.detail ||
+      (presentation.state === 'complete' ? t('Live data updated · just now') :
+        presentation.state === 'error' ? t('Could not refresh live data') : '');
   }
 
   _showGlobalStatusNotice(message, options = {}) {
@@ -307,7 +345,9 @@ export class ShellFeedback {
 
   _showToast(message) {
     if (this.destroyed) return;
-    this._toast.textContent = message;
+    const toastMessage = this._toast.querySelector?.('#toast-message');
+    if (toastMessage) toastMessage.textContent = message;
+    else this._toast.textContent = message;
     this._toast.classList.add('visible');
     clearTimeout(this._toastTimer);
     this._toastTimer = setTimeout(() => {
@@ -317,6 +357,7 @@ export class ShellFeedback {
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
+    this._globalLoadingRetry?.removeEventListener('click', this._onRetry);
     this._stopLoadingFeedbackTicker();
     clearInterval(this._trafficChipTicker);
     clearTimeout(this._toastTimer);

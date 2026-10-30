@@ -274,6 +274,7 @@
   padding: 0;
   border: none;
   background: none;
+  background: hsl(200, 100%, 7%);
   outline: none;
   color: var(--text-primary);
   font-family: var(--font-sans);

@@ -140,6 +140,14 @@ export class StyleManager extends ShellFacade {
     });
     this._feedback = new ShellFeedback({
       readLayers: () => this._dataManager?.getAll?.() || [],
+      retryLayers: async (ids) => {
+        for (const id of ids) {
+          const layer = this._dataManager?.getAll?.().find((item) => item.id === id);
+          if (!layer) continue;
+          if (layer.enabled) await this._dataManager.refreshLayer(id);
+          else await this._dataManager.setEnabled(id, true);
+        }
+      },
     });
     this.viewer = viewer;
     this.mapStackController = mapStackController;
@@ -368,6 +376,9 @@ export class StyleManager extends ShellFacade {
         _updateTrafficSyncChip: (...args) =>
           this._updateTrafficSyncChip(...args),
         _showToast: (...args) => this._showToast(...args),
+        onCitySelected: (name) => this._mobileShell?.showCity(name),
+        onSearchDestination: (label) =>
+          this._mobileShell?.showDestination(label),
       },
     });
     this._lastTrafficChipUpdateAt = 0;

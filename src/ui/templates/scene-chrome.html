@@ -39,21 +39,33 @@
       <span class="material-symbols-outlined" aria-hidden="true">public</span>
     </button>
   </nav>
-  <div id="global-loading-status" role="status" aria-live="polite" aria-atomic="true" hidden>
-    <span id="global-loading-label" data-i18n>LOADING LIVE DATA</span>
-    <span id="global-loading-detail"></span>
-  </div>
-  <div id="traffic-sync-chip" aria-live="polite">
-    <span id="traffic-sync-label" data-i18n>syncing road network</span>
-    <span id="traffic-sync-progress">0%</span>
-  </div>
-  <div id="cctv-sync-chip" aria-live="polite">
-    <span id="cctv-sync-label" data-i18n>loading frames</span>
-    <span id="cctv-sync-progress">0/0</span>
-  </div>
+  <div id="mobile-status-stack">
+    <div id="global-loading-status" role="status" aria-live="polite" aria-atomic="true" hidden>
+      <span class="mobile-status-icon" aria-hidden="true"></span>
+      <span class="mobile-status-copy">
+        <span id="global-loading-label" data-i18n>LOADING LIVE DATA</span>
+        <span id="global-loading-detail"></span>
+      </span>
+      <button id="global-loading-retry" type="button" hidden>RETRY</button>
+    </div>
+    <div id="traffic-sync-chip" aria-live="polite">
+      <span class="mobile-status-icon" aria-hidden="true"></span>
+      <span class="mobile-status-copy">
+        <span id="traffic-sync-label" data-i18n>syncing road network</span>
+        <span id="traffic-sync-progress">0%</span>
+      </span>
+    </div>
+    <div id="cctv-sync-chip" aria-live="polite">
+      <span class="mobile-status-icon" aria-hidden="true"></span>
+      <span class="mobile-status-copy">
+        <span id="cctv-sync-label" data-i18n>loading frames</span>
+        <span id="cctv-sync-progress">0/0</span>
+      </span>
+    </div>
 
-  <!-- Toast notification -->
-  <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+    <!-- Toast notification -->
+    <div id="toast" role="status" aria-live="polite" aria-atomic="true"><span class="mobile-status-icon" aria-hidden="true"></span><span class="mobile-status-copy"><span class="mobile-toast-title">NOTICE</span><span id="toast-message"></span></span></div>
+  </div>
 
   <!-- Safe frame guides for recording composition -->
   <div id="safe-frame-overlay">

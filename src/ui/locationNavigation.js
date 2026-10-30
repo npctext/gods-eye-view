@@ -97,11 +97,13 @@ export class LocationNavigation {
       this._setLocationSearchError(
         `${t('Search failed')}. ${t('Press Enter to try again.')}`,
       );
-    else if (change.type === 'settled')
+    else if (change.type === 'settled') {
       this._settleLocationSearchUi(change.generation, {
         keepQuery: state.status === 'missing' || state.status === 'failed',
       });
-    else if (
+      if (state.status === 'found')
+        this.onSearchDestination?.(state.destination?.label || state.query);
+    } else if (
       change.type === 'reset' &&
       this._activeLocationSearchGeneration !== null
     ) {
@@ -210,7 +212,10 @@ export class LocationNavigation {
 
   _onCityPillClick(cityId) {
     const { CITY_POIS, flyToPresetLocation } = this.services;
-    if (this._expandedCityId === cityId) {
+    if (
+      this._expandedCityId === cityId &&
+      !globalThis.document?.body?.classList?.contains?.('mobile-shell')
+    ) {
       // Same city clicked again — toggle collapse
       this._collapsePOIRow();
       return;
@@ -233,6 +238,7 @@ export class LocationNavigation {
       this._currentPoi = CITY_POIS[cityId].pois[0];
     }
     this._updateLocationMiniStatus();
+    this.onCitySelected?.(CITY_POIS[cityId].name);
   }
 
   _onPoiClick(cityId, poiIndex) {
