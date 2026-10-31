@@ -720,3 +720,11 @@ body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
 }
+
+/* Use pixel widths where supported; retain native thin scrollbars elsewhere. */
+@supports selector(::-webkit-scrollbar) {
+.bhote-embedded-callout-player { scrollbar-width: auto; scrollbar-color: auto; }
+.bhote-embedded-callout-player::-webkit-scrollbar { width: 5px; }
+.bhote-embedded-callout-player::-webkit-scrollbar-thumb { background: rgba(107, 232, 255, 0.36); border-radius: 999px; }
+.bhote-embedded-callout-player::-webkit-scrollbar-track { background: transparent; }
+}

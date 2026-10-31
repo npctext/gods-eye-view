@@ -17,7 +17,10 @@ class PlaybackClock {
     this.isRunning = isRunning;
     this.timingForShot = timingForShot;
     this.onProgress = onProgress;
-    this.now = now;
+    this._now = now;
+    this._pausedAt = null;
+    this._pausedMs = 0;
+    this.now = () => (this._pausedAt ?? this._now()) - this._pausedMs;
     this.schedule = schedule;
     this.cancel = cancel;
     this._progressTimer = null;
@@ -34,6 +37,21 @@ class PlaybackClock {
 
   get snapshot() {
     return this._sceneClockSnapshot ? { ...this._sceneClockSnapshot } : null;
+  }
+
+  pause() {
+    if (this._pausedAt !== null) return;
+    this._pausedAt = this._now();
+    if (this._sceneClockSnapshot) {
+      this._sceneClockSnapshot = { ...this._sceneClockSnapshot, running: false };
+      for (const listener of this._sceneClockListeners) listener(this.snapshot);
+    }
+  }
+
+  resume() {
+    if (this._pausedAt === null) return;
+    this._pausedMs += this._now() - this._pausedAt;
+    this._pausedAt = null;
   }
   get activeTimers() {
     return (
@@ -61,6 +79,7 @@ class PlaybackClock {
     this.stopSceneTimer();
   }
   stop() {
+    this.resume();
     this.cancelWaits();
     this.stopShot();
     this.finish();
@@ -252,7 +271,7 @@ class PlaybackClock {
     this._shotProgressTimer = timer;
   }
 
-  startScene(scene, shot, token) {
+  startScene(scene, shot, token, elapsedSec = 0) {
     this.stopSceneTimer();
     const generation = this._sceneGeneration;
     const timing = this.timingForShot(scene, shot);
@@ -264,8 +283,8 @@ class PlaybackClock {
     )
       return timing;
     const startedAt = this.now();
-    this.publish(scene, shot, timing.startElapsedSec, {
-      running: true,
+    this.publish(scene, shot, timing.startElapsedSec + elapsedSec, {
+      running: !token.paused,
     });
     if (
       generation !== this._sceneGeneration ||
@@ -276,6 +295,7 @@ class PlaybackClock {
       return timing;
     const timer = this.schedule(() => {
       if (this._sceneClockTimer !== timer) return;
+      if (token.paused) return;
       if (
         this._destroyed ||
         token.cancelled ||
@@ -288,10 +308,10 @@ class PlaybackClock {
       }
       const shotElapsedSec = Math.min(
         timing.durationSec,
-        (this.now() - startedAt) / 1000,
+        elapsedSec + (this.now() - startedAt) / 1000,
       );
       this.publish(scene, shot, timing.startElapsedSec + shotElapsedSec, {
-        running: true,
+        running: !token.paused,
       });
     }, 50);
     timer.unref?.();

@@ -48,6 +48,7 @@ export function layerStatesForShot(
         ...(sceneSeek
           ? {
               timelineSeek: {
+                running: sceneSeek.running === true,
                 shotElapsedSec: Number(sceneSeek.shotElapsedSec) || 0,
                 flightDurationSec: Number(sceneSeek.flightDurationSec) || 0,
                 holdDurationSec: Number(sceneSeek.holdDurationSec) || 0,

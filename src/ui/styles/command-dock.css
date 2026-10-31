@@ -98,9 +98,6 @@
   max-width: 110px;
 }
 
-#command-dock .panel-glow {
-  display: none;
-}
 
 #command-dock .panel-inner,
 #command-dock .location-inner,

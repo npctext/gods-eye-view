@@ -41,6 +41,7 @@ function element(tag, document) {
     },
     setAttribute: (key, value) => attributes.set(key, String(value)),
     getAttribute: (key) => attributes.get(key) ?? null,
+    hasAttribute: (key) => attributes.has(key),
     removeAttribute: (key) => attributes.delete(key),
     append(...children) {
       for (const child of children) {
@@ -102,6 +103,8 @@ function element(tag, document) {
           ? Boolean(child.dataset.mobileSheet)
           : selector === '.data-toggle-btn.active'
             ? child.classList.contains('data-toggle-btn') && child.classList.contains('active')
+          : selector === '.data-toggle-btn'
+            ? child.classList.contains('data-toggle-btn')
           : child.tagName === 'BUTTON';
       const walk = (parent) => {
         for (const child of parent.children) {
@@ -198,6 +201,9 @@ function fixture({
       active.id = 'mobile-layers-active';
       const count = element('span', document);
       count.id = 'mobile-layers-active-count';
+      const total = element('span', document);
+      total.id = 'mobile-layers-count';
+      panel.append(total);
       active.append(count);
       filter.append(all, active);
       const list = element('div', document);
@@ -236,7 +242,7 @@ function fixture({
   const shell = initMobileShell({
     documentRef: document,
     onTabOpened,
-    matchMedia: () => media,
+    matchMedia: (query) => query === '(prefers-reduced-motion: reduce)' ? { matches: false } : media,
     MutationObserverImpl: FakeMutationObserver,
     ResizeObserverImpl: null,
     requestFrame: (callback) => frames.push(callback),
@@ -308,14 +314,93 @@ test('pressing a tab opens its sheet, pressing it again closes it', () => {
   assert.equal(nextSheet(null, 'constructor'), null);
 });
 
-test('one sheet at a time, with Layers nonmodal and other sheets using a backdrop', () => {
+test('tab transitions only apply the latest requested tab', async () => {
+  const { document, shell, press } = fixture();
+  press('layers');
+  const animations = [];
+  document.documentElement = element('html', document);
+  document.startViewTransition = (update) => {
+    let finish;
+    const finished = new Promise((resolve) => { finish = resolve; });
+    const animation = { finished, skipTransition: () => { update(); finish(); }, finish: () => { update(); finish(); } };
+    animations.push(animation);
+    return animation;
+  };
+  press('scenes');
+  assert.equal(shell.getSheet(), 'layers');
+  press('context');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(shell.getSheet(), 'layers');
+  animations[1].finish();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(shell.getSheet(), 'context');
+  shell.destroy();
+});
+
+test('closing a sheet cancels a pending tab switch', async () => {
+  const { document, shell, press } = fixture();
+  press('layers');
+  let finish;
+  document.documentElement = element('html', document);
+  document.startViewTransition = (update) => ({
+    finished: new Promise((resolve) => { finish = resolve; }),
+    skipTransition: () => { update(); finish(); },
+  });
+  press('scenes');
+  shell.setSheet(null);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(shell.getSheet(), null);
+  shell.destroy();
+});
+
+test('selecting a shot lowers Scenes once and the handle restores its previous height', () => {
+  const { document, shell, press } = fixture();
+  const panel = document.getElementById('scene-panel');
+  press('scenes');
+  document.body.setAttribute('data-mobile-scenes-expanded', '');
+  panel.dispatchEvent(new Event('mobile-scene-shot-selected'));
+  panel.dispatchEvent(new Event('mobile-scene-shot-selected'));
+  assert.equal(document.body.hasAttribute('data-mobile-scenes-lowered'), true);
+  assert.equal(document.body.hasAttribute('data-mobile-scenes-expanded'), true);
+  panel.dispatchEvent(new Event('mobile-scene-expand'));
+  assert.equal(document.body.hasAttribute('data-mobile-scenes-lowered'), false);
+  assert.equal(document.body.hasAttribute('data-mobile-scenes-expanded'), true);
+  panel.dispatchEvent(new Event('mobile-scene-shot-selected'));
+  press('layers');
+  assert.equal(document.body.hasAttribute('data-mobile-scenes-lowered'), false);
+  panel.dispatchEvent(new Event('mobile-scene-shot-selected'));
+  assert.equal(document.body.hasAttribute('data-mobile-scenes-lowered'), false);
+  shell.destroy();
+});
+
+test('opening the first tab uses the sheet transition', async () => {
+  const { document, shell, press } = fixture();
+  document.documentElement = element('html', document);
+  let update;
+  let finish;
+  document.startViewTransition = (callback) => {
+    update = callback;
+    return { finished: new Promise((resolve) => { finish = resolve; }), skipTransition: () => finish() };
+  };
+  press('scenes');
+  assert.equal(shell.getSheet(), null);
+  assert.equal(document.documentElement.getAttribute('data-tab-transition'), '');
+  update();
+  assert.equal(shell.getSheet(), 'scenes');
+  finish();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(document.documentElement.getAttribute('data-tab-transition'), null);
+  shell.destroy();
+});
+
+test('one sheet at a time, with every navigation sheet using a backdrop', () => {
   const { document, shell, press, tab } = fixture();
   assert.equal(document.body.classList.contains('mobile-shell'), true);
   press('layers');
   assert.equal(shell.getSheet(), 'layers');
   assert.equal(document.body.getAttribute('data-mobile-sheet'), 'layers');
   assert.equal(tab('layers').getAttribute('aria-expanded'), 'true');
-  assert.equal(document.getElementById('mobile-sheet-backdrop').hidden, true);
+  assert.equal(document.getElementById('mobile-sheet-backdrop').hidden, false);
   press('more');
   assert.equal(shell.getSheet(), 'more');
   assert.equal(tab('layers').getAttribute('aria-expanded'), 'false');
@@ -331,6 +416,7 @@ test('Layers Active filter tracks enabled rows and updates when one turns off', 
   const { document, press, mutateLayers } = fixture();
   const list = document.getElementById('data-toggles');
   const count = document.getElementById('mobile-layers-active-count');
+  const total = document.getElementById('mobile-layers-count');
   const addRow = (active) => {
     const row = element('div', document);
     const toggle = element('button', document);
@@ -345,6 +431,7 @@ test('Layers Active filter tracks enabled rows and updates when one turns off', 
   addRow(false);
   mutateLayers();
   assert.equal(count.textContent, '2');
+  assert.equal(total.textContent, '3');
   press('layers');
   list.scrollTop = 90;
   const active = document.getElementById('mobile-layers-active');
@@ -355,6 +442,10 @@ test('Layers Active filter tracks enabled rows and updates when one turns off', 
   first.classList.remove('active');
   mutateLayers();
   assert.equal(count.textContent, '1');
+  assert.equal(total.textContent, '3');
+  addRow(false);
+  mutateLayers();
+  assert.equal(total.textContent, '4');
   document.getElementById('mobile-layers-all').dispatchEvent(new Event('click'));
   assert.equal(document.body.getAttribute('data-mobile-layer-filter'), null);
   assert.equal(active.getAttribute('aria-pressed'), 'false');
@@ -562,7 +653,9 @@ test('the details handle closes on a downward swipe', () => {
   shell.showCity('London');
   touch('touchstart', 20);
   touch('touchmove', 50);
+  assert.equal(document.getElementById('mobile-details').style.values.get('transform'), 'translateY(30px)');
   touch('touchend', 50);
+  assert.equal(document.getElementById('mobile-details').style.values.has('transform'), false);
   assert.equal(document.body.getAttribute('data-mobile-details'), '');
   touch('touchstart', 20);
   touch('touchmove', 100);
@@ -657,6 +750,29 @@ test('layout settling after a sheet opens is part of opening', () => {
   assert.equal(collapsed('street-level-panel'), false, 'put back as it was');
 });
 
+test('the backdrop uses the standard closing transition for every sheet', async () => {
+  for (const sheet of Object.keys(MOBILE_SHEET_PANELS)) {
+    const { document, shell, press } = fixture();
+    press(sheet);
+    document.documentElement = element('html', document);
+    let update;
+    let finish;
+    document.startViewTransition = (callback) => {
+      update = callback;
+      return { finished: new Promise((resolve) => { finish = resolve; }), skipTransition: () => finish() };
+    };
+    document.getElementById('mobile-sheet-backdrop').dispatchEvent(new Event('click'));
+    assert.equal(shell.getSheet(), sheet);
+    assert.equal(document.documentElement.getAttribute('data-tab-transition'), '');
+    update();
+    assert.equal(shell.getSheet(), null);
+    finish();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(document.documentElement.getAttribute('data-tab-transition'), null);
+    shell.destroy();
+  }
+});
+
 test('the backdrop closes the open sheet', () => {
   const { document, shell, press } = fixture();
   press('context');
@@ -714,6 +830,7 @@ test('destroy puts panels back and removes the shell', () => {
   shell.destroy();
   assert.equal(collapsed('data-panel'), true);
   assert.equal(document.getElementById('mobile-tab-bar'), null);
+  assert.equal(document.getElementById('mobile-footer-scrim'), null);
   assert.equal(document.getElementById('mobile-sheet-backdrop'), null);
   assert.equal(document.body.classList.contains('mobile-shell'), false);
   assert.equal(document.body.getAttribute('data-mobile-sheet'), null);
@@ -796,8 +913,111 @@ function touchEvent(
   return event;
 }
 
+test('Layers can expand from its content and leave a scrolled list to native scrolling', () => {
+  const { document, shell, press } = fixture();
+  document.defaultView = { innerHeight: 844 };
+  press('layers');
+  const rail = document.getElementById('left-panel-stack');
+  const list = document.getElementById('data-toggles');
+  touchEvent(rail, 'touchstart', list, { y: 200 });
+  assert.equal(touchEvent(rail, 'touchmove', list, { y: 100 }).defaultPrevented, true);
+  touchEvent(rail, 'touchend', list, { y: 100 });
+  assert.equal(document.body.hasAttribute('data-mobile-layers-expanded'), true);
+  list.scrollTop = 100;
+  touchEvent(rail, 'touchstart', list, { y: 100 });
+  assert.equal(touchEvent(rail, 'touchmove', list, { y: 200 }).defaultPrevented, false);
+  touchEvent(rail, 'touchend', list, { y: 200 });
+  assert.equal(document.body.hasAttribute('data-mobile-layers-expanded'), true);
+  shell.destroy();
+});
+
+test('City details drag from content and preserve horizontal place swipes', () => {
+  const { document, shell } = fixture();
+  shell.showCity('London');
+  const panel = document.getElementById('mobile-details');
+  const content = document.getElementById('mobile-details-content');
+  touchEvent(panel, 'touchstart', content, { x: 10, y: 100 });
+  assert.equal(touchEvent(panel, 'touchmove', content, { x: 100, y: 105 }).defaultPrevented, false);
+  touchEvent(panel, 'touchend', content, { x: 100, y: 105 });
+  assert.equal(document.body.hasAttribute('data-mobile-details'), true);
+  touchEvent(panel, 'touchstart', content, { y: 100 });
+  assert.equal(touchEvent(panel, 'touchmove', content, { y: 180 }).defaultPrevented, true);
+  assert.equal(panel.style.values.get('transform'), 'translateY(80px)');
+  touchEvent(panel, 'touchend', content, { y: 180 });
+  assert.equal(document.body.hasAttribute('data-mobile-details'), false);
+  shell.destroy();
+});
+
+test('Scenes keeps compact content scrolling and expands from the handle', () => {
+  const { document, shell, press } = fixture();
+  press('scenes');
+  const panel = document.getElementById('scene-panel');
+  const rail = document.getElementById('left-panel-stack');
+  rail.getBoundingClientRect = () => ({ top: 300, height: 400 });
+  const content = { scrollTop: 0, clientHeight: 300, scrollHeight: 900 };
+  const card = { closest: (selector) => selector === '.mobile-scene-content' ? content : null };
+  touchEvent(panel, 'touchstart', card, { y: 200 });
+  assert.equal(touchEvent(panel, 'touchmove', card, { y: 100 }).defaultPrevented, false);
+  touchEvent(panel, 'touchend', card, { y: 100 });
+  assert.equal(document.body.hasAttribute('data-mobile-scenes-expanded'), false);
+  const handle = { closest: (selector) => selector === '[data-mobile-scene-handle]' ? {} : null };
+  touchEvent(panel, 'touchstart', handle, { y: 200 });
+  assert.equal(touchEvent(panel, 'touchmove', handle, { y: 100 }).defaultPrevented, true);
+  touchEvent(panel, 'touchend', handle, { y: 100 });
+  assert.equal(document.body.hasAttribute('data-mobile-scenes-expanded'), true);
+  touchEvent(panel, 'touchstart', card, { y: 200 });
+  assert.equal(touchEvent(panel, 'touchmove', card, { y: 100 }).defaultPrevented, false);
+  touchEvent(panel, 'touchend', card, { y: 100 });
+  content.scrollTop = 100;
+  touchEvent(panel, 'touchstart', card, { y: 100 });
+  assert.equal(touchEvent(panel, 'touchmove', card, { y: 200 }).defaultPrevented, false);
+  touchEvent(panel, 'touchend', card, { y: 200 });
+  assert.equal(document.body.hasAttribute('data-mobile-scenes-expanded'), true);
+  content.scrollTop = 0;
+  touchEvent(panel, 'touchstart', card, { y: 100 });
+  assert.equal(touchEvent(panel, 'touchmove', card, { y: 200 }).defaultPrevented, true);
+  touchEvent(panel, 'touchend', card, { y: 200 });
+  assert.equal(document.body.hasAttribute('data-mobile-scenes-expanded'), false);
+  shell.destroy();
+});
+
+test('compact Layers scrolls before expanding and does not steal a gesture at the list end', () => {
+  const { document, shell, press } = fixture();
+  document.defaultView = { innerHeight: 844 };
+  press('layers');
+  const rail = document.getElementById('left-panel-stack');
+  const list = document.getElementById('data-toggles');
+  Object.assign(list, { scrollTop: 0, clientHeight: 200, scrollHeight: 600 });
+  touchEvent(rail, 'touchstart', list, { y: 200 });
+  assert.equal(touchEvent(rail, 'touchmove', list, { y: 180 }).defaultPrevented, false);
+  list.scrollTop = 400;
+  assert.equal(touchEvent(rail, 'touchmove', list, { y: 100 }).defaultPrevented, false);
+  touchEvent(rail, 'touchend', list, { y: 100 });
+  assert.equal(document.body.hasAttribute('data-mobile-layers-expanded'), false);
+  shell.destroy();
+});
+
+test('Scenes editor outer scroller and lowered content keep native scroll priority', () => {
+  for (const lowered of [false, true]) {
+    const { document, shell, press } = fixture();
+    press('scenes');
+    if (lowered) document.body.setAttribute('data-mobile-scenes-lowered', '');
+    const panel = document.getElementById('scene-panel');
+    const outer = { scrollTop: 50, clientHeight: 200, scrollHeight: 800 };
+    const card = { closest: selector => selector === '.scene-panel-inner' ? outer : null };
+    for (const y of [100, 300]) {
+      touchEvent(panel, 'touchstart', card, { y: 200 });
+      assert.equal(touchEvent(panel, 'touchmove', card, { y }).defaultPrevented, false);
+      touchEvent(panel, 'touchend', card, { y });
+    }
+    assert.equal(document.body.hasAttribute('data-mobile-scenes-expanded'), false);
+    assert.equal(document.body.hasAttribute('data-mobile-scenes-lowered'), lowered);
+    shell.destroy();
+  }
+});
+
 test('downward sheet pull closes through borrowed-panel lifecycle and returns tab focus', () => {
-  for (const sheet of Object.keys(MOBILE_SHEET_PANELS).filter((name) => name !== 'layers')) {
+  for (const sheet of Object.keys(MOBILE_SHEET_PANELS).filter((name) => !['layers', 'scenes'].includes(name))) {
     const phone = fixture();
     const { document, shell, press, tab } = phone;
     press(sheet);
@@ -1100,26 +1320,27 @@ test('failed mobile Contacts entry uses the existing notice and cancelled/dispos
   }
 });
 
-test('a slow downward pull is claimed before Android native scroll takes ownership', () => {
+test('a slow downward pull is claimed before Android native scroll takes ownership', async () => {
   const { document, shell, press } = fixture();
   press('scenes');
   const panel = document.getElementById('scene-panel');
-  touchEvent(document, 'touchstart', panel, { y: 100 });
+  touchEvent(panel, 'touchstart', panel, { y: 100 });
   assert.equal(
-    touchEvent(document, 'touchmove', panel, { y: 102 }).defaultPrevented,
+    touchEvent(panel, 'touchmove', panel, { y: 102 }).defaultPrevented,
     false,
     'tap jitter is left native',
   );
   assert.equal(
-    touchEvent(document, 'touchmove', panel, { y: 109.3 }).defaultPrevented,
+    touchEvent(panel, 'touchmove', panel, { y: 109.3 }).defaultPrevented,
     true,
     'cancel the first directional move while Android still allows it',
   );
   assert.equal(
-    touchEvent(document, 'touchmove', panel, { y: 131 }).defaultPrevented,
+    touchEvent(panel, 'touchmove', panel, { y: 131 }).defaultPrevented,
     true,
   );
-  touchEvent(document, 'touchend', panel, { y: 175 });
+  touchEvent(panel, 'touchend', panel, { y: 195 });
+  await new Promise((resolve) => setTimeout(resolve, 300));
   assert.equal(shell.getSheet(), null);
   shell.destroy();
 });

@@ -394,3 +394,19 @@ test('pausing cancels a mounted Facebook preload and rejects its late ready call
   assert.deepEqual(playerCalls, []);
   media.destroy();
 });
+
+test('trimmed YouTube pause retains its frame and suspends the playback deadline', async () => {
+  const f = trimmedPlaybackFixture();
+  await Promise.resolve(); await Promise.resolve();
+  f.events.onReady({ target: f.player });
+  f.setState(1); f.setTime(3); f.advance(100);
+  f.session.setPaused(true);
+  f.advance(60000);
+  assert.equal(f.session.getState().phase, 'playing');
+  assert.equal(f.session.getState().currentTime, 3);
+  assert.equal(f.timers.size, 0);
+  f.session.setPaused(false);
+  f.setTime(7); f.advance(100);
+  assert.equal(f.session.getState().phase, 'completed');
+  f.session.destroy();
+});

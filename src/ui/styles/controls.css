@@ -9,18 +9,6 @@
   max-width: 680px;
 }
 
-#control-panel .panel-glow {
-  position: absolute;
-  inset: -30px;
-  background: radial-gradient(
-    ellipse at center bottom,
-    var(--accent-dim) 0%,
-    transparent 60%
-  );
-  filter: blur(30px);
-  opacity: 0.4;
-  pointer-events: none;
-}
 
 .panel-inner {
   position: relative;

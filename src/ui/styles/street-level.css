@@ -11,18 +11,6 @@
   --sl-text: 0.6rem;
 }
 
-#street-level-panel .panel-glow {
-  position: absolute;
-  inset: -18px;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(5, 203, 99, 0.16) 0%,
-    transparent 65%
-  );
-  filter: blur(16px);
-  opacity: 0.25;
-  pointer-events: none;
-}
 
 .street-level-panel-inner {
   position: relative;
@@ -615,4 +603,12 @@ html:not([lang='en']) .sl-meta-row .sl-nearest-btn {
     height: clamp(110px, calc(48vh - 8px - 7.5rem - 150px), 320px);
     min-height: 0;
   }
+}
+
+/* Use pixel widths where supported; retain native thin scrollbars elsewhere. */
+@supports selector(::-webkit-scrollbar) {
+.street-level-panel-inner { scrollbar-width: auto; scrollbar-color: auto; }
+.street-level-panel-inner::-webkit-scrollbar { width: 5px; }
+.street-level-panel-inner::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.46); border-radius: 999px; }
+.street-level-panel-inner::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.06); }
 }

@@ -323,9 +323,7 @@ export class PanelLayoutController {
       this._leftStackResizeObserver.observe(stack);
       stack.querySelectorAll(':scope > [data-panel-id]').forEach((panel) => {
         this._leftStackResizeObserver.observe(panel);
-        const inner = [...panel.children].find(
-          (child) => !child.classList.contains('panel-glow'),
-        );
+        const inner = panel.children[0];
         if (inner) this._leftStackResizeObserver.observe(inner);
       });
       document

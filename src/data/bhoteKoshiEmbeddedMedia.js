@@ -160,6 +160,7 @@ export function createTrimmedYouTubePlayback({
   let phase = 'starting';
   let active = true;
   let started = false;
+  let paused = false;
   let currentTime = startAtSec;
   let poll = null;
   let deadline = null;
@@ -182,7 +183,7 @@ export function createTrimmedYouTubePlayback({
     onStatus(outcome);
   };
   const sample = (stateHint) => {
-    if (!live()) return;
+    if (!live() || paused) return;
     globalRef.clearTimeout(poll);
     poll = null;
     try {
@@ -231,7 +232,8 @@ export function createTrimmedYouTubePlayback({
             if (!live()) return;
             try {
               event.target.mute();
-              event.target.playVideo();
+              if (paused) event.target.pauseVideo();
+              else event.target.playVideo();
             } catch {
               finish('unavailable');
             }
@@ -249,6 +251,19 @@ export function createTrimmedYouTubePlayback({
     .catch(() => finish('unavailable'));
   return {
     getState: () => ({ phase, currentTime }),
+    setPaused(value) {
+      if (!live() || paused === value) return;
+      paused = value;
+      clear();
+      try {
+        if (paused) player?.pauseVideo?.();
+        else {
+          player?.playVideo?.();
+          deadline = globalRef.setTimeout(() => finish('timeout'), Math.max(0, endAtSec - currentTime) * 1000 + 5000);
+          sample();
+        }
+      } catch { finish('unavailable'); }
+    },
     destroy() {
       active = false;
       phase = 'cancelled';
@@ -995,6 +1010,10 @@ export function createBhoteKoshiEmbeddedMedia({
 
   function setPlayback(playing) {
     if (!playing) clearWarm();
+    if (record?.youtubeSession) {
+      record.youtubeSession.setPaused(!playing);
+      return true;
+    }
     // Removing an uncontrolled provider frame also cancels delayed autoplay.
     // Provider commands alone cannot stop a frame that has not loaded yet.
     if (!playing && record && !record.facebookSession) {

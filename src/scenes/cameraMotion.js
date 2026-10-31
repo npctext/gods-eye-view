@@ -15,11 +15,17 @@ export function createCameraMotion({
       return active !== null;
     },
     cancel,
+    pause() {
+      active?.pause();
+    },
+    resume() {
+      active?.resume();
+    },
     destroy() {
       disposed = true;
       cancel();
     },
-    play(move, token) {
+    play(move, token, startProgress = 0) {
       cancel();
       if (disposed || token?.cancelled || token?.signal?.aborted)
         return Promise.resolve(false);
@@ -27,7 +33,20 @@ export function createCameraMotion({
         throw new RangeError('Camera move duration must be positive');
       return new Promise((resolve, reject) => {
         const run = { handle: null, finish: null };
-        const startedAt = now();
+        let startedAt = now() - startProgress * move.durationSec * 1000;
+        let pausedAt = null;
+        run.pause = () => {
+          if (pausedAt !== null) return;
+          pausedAt = now();
+          if (run.handle !== null) cancelFrame(run.handle);
+          run.handle = null;
+        };
+        run.resume = () => {
+          if (pausedAt === null || active !== run) return;
+          startedAt += now() - pausedAt;
+          pausedAt = null;
+          tick();
+        };
         const onAbort = () => run.finish(false);
         run.finish = (completed, error) => {
           if (active !== run) return;
@@ -41,6 +60,7 @@ export function createCameraMotion({
         token?.signal?.addEventListener('abort', onAbort, { once: true });
         const tick = () => {
           if (active !== run) return;
+          if (token?.paused) { run.pause(); return; }
           run.handle = null;
           if (disposed || token?.cancelled || token?.signal?.aborted) {
             run.finish(false);

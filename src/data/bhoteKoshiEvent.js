@@ -1378,6 +1378,7 @@ export function createBhoteKoshiEventLayer({
   }
 
   function syncEmbeddedEvidence(index) {
+    if (_sceneMediaOwner?.token?.paused) return _embeddedEvidenceIndex === index;
     if (_witnessEmbedActive) {
       const shown = showWitnessEmbed();
       if (!shown) _embeddedMedia?.hide?.();
@@ -1396,7 +1397,11 @@ export function createBhoteKoshiEventLayer({
     }
     const shown =
       _embeddedMedia?.show?.({
-        observation,
+        observation: _sceneControls.timelineSeek?.running && observation?.media
+          ? { ...observation, media: { ...observation.media,
+              embedStartAtSec: (Number(observation.media.embedStartAtSec ?? observation.media.clipInSec) || 0) + (Number(_sceneControls.timelineSeek.holdElapsedSec) || 0),
+            } }
+          : observation,
         anchor: _evidenceAnchors[index],
         autoplay: sceneEvidenceMediaAutoplays() || _playing,
       }) === true;
@@ -1458,7 +1463,7 @@ export function createBhoteKoshiEventLayer({
       _presentation === BHOTE_KOSHI_SCENE_PRESENTATION &&
       _sceneSurface === BHOTE_KOSHI_SCENE_EVIDENCE_BEAT &&
       _sceneControls.evidenceMediaAutoplay === true &&
-      !_sceneControls.timelineSeek
+      (!_sceneControls.timelineSeek || _sceneControls.timelineSeek.running === true)
     );
   }
 
@@ -1494,6 +1499,27 @@ export function createBhoteKoshiEventLayer({
     if (hadPlayback) renderHost.request('bhote-koshi-scene-media-hold');
   }
 
+  function setSceneMediaPaused(paused) {
+    if (paused) {
+      _embeddedMedia?.pause?.();
+      _evidenceVideo?.pause?.();
+    } else if (_sceneMediaPlaybackBeatId) {
+      _embeddedMedia?.play?.();
+      _evidenceVideo?.play?.()?.catch?.(() => {});
+    }
+  }
+
+  function scheduleSceneMedia(callback, delay) {
+    if (!_sceneMediaOwner?.token?.now) return globalThis.window?.setTimeout?.(callback, delay) ?? null;
+    const now = _sceneMediaOwner?.token?.now || Date.now;
+    const deadline = now() + delay;
+    const tick = () => {
+      if (!_sceneMediaOwner?.token?.paused && now() >= deadline) callback();
+      else _sceneMediaPlaybackTimer = globalThis.window?.setTimeout?.(tick, Math.min(100, Math.max(16, deadline - now()))) ?? null;
+    };
+    return globalThis.window?.setTimeout?.(tick, Math.min(100, delay)) ?? null;
+  }
+
   function completeSceneMediaPlayback() {
     const beatId = _sceneMediaPlaybackBeatId;
     if (!beatId) return;
@@ -1505,7 +1531,7 @@ export function createBhoteKoshiEventLayer({
       Number(_sceneControls.mediaExitDurationSec) || 0,
     );
     _sceneMediaPlaybackTimer =
-      globalThis.window?.setTimeout?.(() => {
+      scheduleSceneMedia(() => {
         if (_sceneMediaPlaybackBeatId !== beatId) return;
         _sceneMediaPlaybackTimer = null;
         _sceneMediaPlaybackBeatId = null;
@@ -1526,7 +1552,8 @@ export function createBhoteKoshiEventLayer({
     _sceneMediaPlaybackBeatId = beatId;
     _embeddedMedia?.play?.();
     if (sceneUsesTrimmedMedia(beatId) && _embeddedEvidenceIndex === index) {
-      const deadline = Date.now() + 18000;
+      const now = _sceneMediaOwner?.token?.now || Date.now;
+      const deadline = now() + 18000;
       const check = () => {
         if (
           !_enabled ||
@@ -1543,14 +1570,14 @@ export function createBhoteKoshiEventLayer({
             'timeout',
             'cancelled',
           ].includes(state?.phase) ||
-          Date.now() >= deadline
+          now() >= deadline
         ) {
           _sceneMediaPlaybackTimer = null;
           completeSceneMediaPlayback();
           return;
         }
         _sceneMediaPlaybackTimer =
-          globalThis.window?.setTimeout?.(check, 100) ?? null;
+          scheduleSceneMedia(check, 100) ?? null;
       };
       check();
       return;
@@ -1577,7 +1604,7 @@ export function createBhoteKoshiEventLayer({
       availableMediaSec,
     );
     _sceneMediaPlaybackTimer =
-      globalThis.window?.setTimeout?.(() => {
+      scheduleSceneMedia(() => {
         if (
           !_enabled ||
           _sceneBeatId !== beatId ||
@@ -1586,7 +1613,7 @@ export function createBhoteKoshiEventLayer({
           return;
         _sceneMediaPlaybackTimer = null;
         completeSceneMediaPlayback();
-      }, durationSec * 1000) ?? null;
+      }, Math.max(0, durationSec - (Number(_sceneControls.timelineSeek?.holdElapsedSec) || 0)) * 1000) ?? null;
   }
 
   function sceneUsesTrimmedMedia(beatId) {
@@ -1625,8 +1652,9 @@ export function createBhoteKoshiEventLayer({
 
   function sceneMediaPlaybackBlocksPath() {
     return (
-      _sceneMediaPlaybackBeatId === _sceneBeatId &&
-      _sceneControls.evidencePathDuringMedia !== true
+      _sceneMediaOwner?.token?.paused ||
+      (_sceneMediaPlaybackBeatId === _sceneBeatId &&
+      _sceneControls.evidencePathDuringMedia !== true)
     );
   }
 
@@ -2367,6 +2395,7 @@ export function createBhoteKoshiEventLayer({
     const video = _evidenceVideo;
     const beat = _evidenceTimeline[index];
     if (!video || !_evidenceVideoReady || !beat) return;
+    if (_sceneMediaOwner?.token?.paused) return;
     const presentation = evidenceBeatPresentation(_progress, beat);
     const clipIn = Math.max(0, Number(beat.observation.media?.clipInSec) || 0);
     const declaredOut = Number(beat.observation.media?.clipOutSec);
@@ -3903,6 +3932,7 @@ export function createBhoteKoshiEventLayer({
     getParams,
     getSceneShotMediaHold,
     setSceneMediaPlayback,
+    setSceneMediaPaused,
     getStats() {
       return {
         count: _enabled ? 1 : 0,

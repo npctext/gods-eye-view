@@ -83,3 +83,23 @@ test('failed pose application settles and invalid durations cannot schedule a lo
     /duration/,
   );
 });
+
+test('authored motion pauses without drifting and resumes the original curve', async () => {
+  const h = harness();
+  const token = {};
+  const run = h.owner.play(move, token, 0.25);
+  assert.equal(h.poses.at(-1).alt, 125);
+  h.tick(500);
+  assert.equal(h.poses.at(-1).alt, 150);
+  token.paused = true;
+  h.owner.pause();
+  h.tick(10500);
+  assert.equal(h.poses.at(-1).alt, 150);
+  assert.equal(h.frames.size, 0);
+  token.paused = false;
+  h.owner.resume();
+  assert.equal(h.poses.at(-1).alt, 150);
+  h.tick(11500);
+  assert.equal(await run, true);
+  assert.equal(h.poses.at(-1).alt, 200);
+});

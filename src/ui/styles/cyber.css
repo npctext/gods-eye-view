@@ -2860,3 +2860,16 @@
     padding: 10px 12px 18px 18px;
   }
 }
+
+/* Use pixel widths where supported; retain native thin scrollbars elsewhere. */
+@supports selector(::-webkit-scrollbar) {
+:root[data-ui-theme='cyber'] .cyber-panel-body { scrollbar-width: auto; scrollbar-color: auto; }
+:root[data-ui-theme='cyber'] .cyber-panel-body::-webkit-scrollbar { width: 5px; }
+:root[data-ui-theme='cyber'] .cyber-panel-body::-webkit-scrollbar-thumb { background: rgba(165, 188, 199, 0.35); border-radius: 999px; }
+:root[data-ui-theme='cyber'] .cyber-panel-body::-webkit-scrollbar-track { background: transparent; }
+
+:root[data-ui-theme='cyber'] #pp-toggles > .pp-panel-body { scrollbar-width: auto; scrollbar-color: auto; }
+:root[data-ui-theme='cyber'] #pp-toggles > .pp-panel-body::-webkit-scrollbar { width: 5px; }
+:root[data-ui-theme='cyber'] #pp-toggles > .pp-panel-body::-webkit-scrollbar-thumb { background: rgba(165, 188, 199, 0.35); border-radius: 999px; }
+:root[data-ui-theme='cyber'] #pp-toggles > .pp-panel-body::-webkit-scrollbar-track { background: transparent; }
+}

@@ -2228,3 +2228,16 @@ body.cockpit-mode #intel-hud .hud-right-edge {
     animation: none;
   }
 }
+
+/* Use pixel widths where supported; retain native thin scrollbars elsewhere. */
+@supports selector(::-webkit-scrollbar) {
+.cockpit-context-window { scrollbar-width: auto; scrollbar-color: auto; }
+.cockpit-context-window::-webkit-scrollbar { width: 5px; }
+.cockpit-context-window::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--cockpit-accent) 45%, transparent); border-radius: 999px; }
+.cockpit-context-window::-webkit-scrollbar-track { background: transparent; }
+
+.cockpit-signal-window { scrollbar-width: auto; scrollbar-color: auto; }
+.cockpit-signal-window::-webkit-scrollbar { width: 5px; }
+.cockpit-signal-window::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--cockpit-accent) 45%, transparent); border-radius: 999px; }
+.cockpit-signal-window::-webkit-scrollbar-track { background: transparent; }
+}

@@ -171,3 +171,24 @@ test('a subscriber can Stop or replace the initial clock without the old start a
   });
   assert.equal(f.timers.size, 0);
 });
+
+test('pause freezes the scene clock and resume excludes paused wall time', () => {
+  const f = fixture();
+  const token = {};
+  f.clock.startScene(scene, shot, token, 1);
+  f.time(500);
+  for (const tick of f.timers.values()) tick();
+  assert.equal(f.clock.snapshot.sceneElapsedSec, 1.5);
+  token.paused = true;
+  f.clock.pause();
+  f.time(15000);
+  for (const tick of f.timers.values()) tick();
+  assert.equal(f.clock.snapshot.sceneElapsedSec, 1.5);
+  assert.equal(f.clock.snapshot.running, false);
+  token.paused = false;
+  f.clock.resume();
+  f.time(15500);
+  for (const tick of f.timers.values()) tick();
+  assert.equal(f.clock.snapshot.sceneElapsedSec, 2);
+  f.clock.destroy();
+});

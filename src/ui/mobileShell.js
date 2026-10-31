@@ -91,11 +91,15 @@ function buildChrome(documentRef) {
   const headerScrim = documentRef.createElement('div');
   headerScrim.id = 'mobile-header-scrim';
   headerScrim.setAttribute('aria-hidden', 'true');
+  const footerScrim = documentRef.createElement('div');
+  footerScrim.id = 'mobile-footer-scrim';
+  footerScrim.setAttribute('aria-hidden', 'true');
   const searchBar = documentRef.createElement('div');
   searchBar.id = 'mobile-search-bar';
   const searchClose = documentRef.createElement('button');
   searchClose.id = 'mobile-search-close';
   searchClose.type = 'button';
+  searchClose.className = 'mobile-sheet-control mobile-sheet-back';
   searchClose.setAttribute('aria-label', t('Back'));
   searchBar.append(searchClose);
 
@@ -119,8 +123,12 @@ function buildChrome(documentRef) {
   const close = documentRef.createElement('button');
   close.id = 'mobile-details-close';
   close.type = 'button';
-  close.className = 'mobile-details-close';
+  close.className = 'mobile-details-close mobile-sheet-control mobile-sheet-close';
   close.setAttribute('aria-label', t('Close'));
+  const closeIcon = documentRef.createElement('span');
+  closeIcon.className = 'mobile-sheet-close-icon';
+  closeIcon.setAttribute('aria-hidden', 'true');
+  close.append(closeIcon);
   header.append(identity, close);
   const divider = documentRef.createElement('div');
   divider.className = 'mobile-details-divider';
@@ -154,8 +162,8 @@ function buildChrome(documentRef) {
     button.append(icon, label);
     tabBar.append(button);
   }
-  documentRef.body.append(headerScrim, searchBar, backdrop, tabBar, details);
-  return { headerScrim, searchBar, searchClose, backdrop, tabBar, details, handle, title, close, content, sectionLabel };
+  documentRef.body.append(headerScrim, footerScrim, searchBar, backdrop, tabBar, details);
+  return { headerScrim, footerScrim, searchBar, searchClose, backdrop, tabBar, details, handle, title, close, content, sectionLabel };
 }
 
 /**
@@ -185,7 +193,7 @@ export function initMobileShell({
   onTabOpened = () => {},
 } = {}) {
   const body = documentRef.body;
-  const { headerScrim, searchBar, searchClose, backdrop, tabBar, details, handle, title, close, content, sectionLabel } = buildChrome(documentRef);
+  const { headerScrim, footerScrim, searchBar, searchClose, backdrop, tabBar, details, handle, title, close, content, sectionLabel } = buildChrome(documentRef);
   const viewport = documentRef.querySelector('meta[name="viewport"]');
   const viewportContent = viewport?.getAttribute('content') ?? null;
   const removers = [];
@@ -197,8 +205,10 @@ export function initMobileShell({
   const layersHandle = element('mobile-layers-handle');
   const layersClose = element('mobile-layers-close');
   const layersRoot = element('left-panel-stack');
+  const scenePanel = element('scene-panel');
   const layersList = element('data-toggles');
   const layersActiveCount = element('mobile-layers-active-count');
+  const layersCount = element('mobile-layers-count');
   const layersFilterButtons = [element('mobile-layers-all'), element('mobile-layers-active')].filter(Boolean);
   const statusStack = element('mobile-status-stack');
   const searchInput = element('location-search');
@@ -269,6 +279,8 @@ export function initMobileShell({
   let detailsTouch = null;
   let layersTouch = null;
   let layersCloseTimer = null;
+  let sceneTouch = null;
+  let sceneCloseTimer = null;
   const written = new Map();
 
   const writeVar = (name, value) => {
@@ -277,6 +289,8 @@ export function initMobileShell({
     body.style.setProperty(name, value);
   };
   const updateLayersActiveCount = () => {
+    if (layersCount)
+      layersCount.textContent = String(layersList?.querySelectorAll('.data-toggle-btn').length ?? 0);
     if (layersActiveCount)
       layersActiveCount.textContent = String(layersList?.querySelectorAll('.data-toggle-btn.active').length ?? 0);
   };
@@ -436,7 +450,17 @@ export function initMobileShell({
       for (const property of ['height', 'bottom', 'transform'])
         layersRoot?.style.removeProperty(property);
     }
-    backdrop.hidden = !sheet || sheet === 'layers';
+    if (sheet !== 'scenes') {
+      body.removeAttribute('data-mobile-scenes-lowered');
+      clearTimeout(sceneCloseTimer);
+      sceneCloseTimer = null;
+      sceneTouch = null;
+      body.removeAttribute('data-mobile-scenes-expanded');
+      body.removeAttribute('data-mobile-scenes-dragging');
+      layersRoot?.style.removeProperty('height');
+      layersRoot?.style.removeProperty('transform');
+    }
+    backdrop.hidden = !sheet;
     for (const button of tabBar.querySelectorAll('[data-mobile-sheet]'))
       button.setAttribute(
         'aria-expanded',
@@ -463,7 +487,17 @@ export function initMobileShell({
     );
   };
 
-  const setSheet = (requested) => {
+  let tabTransitionGeneration = 0;
+  let tabTransition = null;
+  const cancelTabTransition = () => {
+    tabTransitionGeneration += 1;
+    tabTransition?.skipTransition();
+    tabTransition = null;
+    documentRef.documentElement?.removeAttribute('data-tab-transition');
+  };
+
+  const setSheet = (requested, keepTransition = false) => {
+    if (!keepTransition) cancelTabTransition();
     swipe = null;
     if (!body.classList.contains(MOBILE_SHELL_CLASS)) return;
     if (requested) {
@@ -480,6 +514,8 @@ export function initMobileShell({
       restoreBorrowed();
     }
     present(sheet);
+    if (previous === 'scenes' && sheet !== 'scenes')
+      scenePanel?.dispatchEvent(new Event('mobile-scenes-closed'));
     if (!sheet) {
       borrowed = null;
       onSheetsClosed();
@@ -513,6 +549,12 @@ export function initMobileShell({
       (button) => button.dataset.mobileSheet === sheet,
     );
 
+  const sheetAnimationDuration = () => {
+    const value = globalThis.getComputedStyle?.(documentRef.documentElement)
+      .getPropertyValue('--mobile-sheet-animation-duration').trim() || '280ms';
+    return parseFloat(value) * (value.endsWith('ms') ? 1 : 1000);
+  };
+
   const closeLayers = () => {
     if (layersCloseTimer) return;
     body.removeAttribute('data-mobile-layers-dragging');
@@ -525,7 +567,17 @@ export function initMobileShell({
       const toggles = element('data-toggles');
       if (toggles) toggles.scrollTop = 0;
       setSheet(null);
-    }, 280);
+    }, sheetAnimationDuration());
+  };
+
+  const closeScenes = () => {
+    if (sceneCloseTimer || currentSheetOf(body) !== 'scenes') return;
+    layersRoot?.style.setProperty('transform', 'translateY(110%)');
+    returnFocus = tabFor('scenes') ?? returnFocus;
+    sceneCloseTimer = setTimeout(() => {
+      sceneCloseTimer = null;
+      setSheet(null);
+    }, sheetAnimationDuration());
   };
 
   const onMedia = (matches) => {
@@ -575,17 +627,151 @@ export function initMobileShell({
     removers.push(() => media.removeListener(onChange));
   }
 
+  const transitionSheet = (sheet, button) => {
+    cancelTabTransition();
+    const generation = tabTransitionGeneration;
+    const update = () => {
+      if (generation !== tabTransitionGeneration) return;
+      // Closing from the tab bar returns focus to the tab that was pressed.
+      if (!sheet) returnFocus = button;
+      setSheet(sheet, true);
+      if (sheet && currentSheetOf(body) === sheet) onTabOpened(sheet);
+    };
+    if (!documentRef.startViewTransition ||
+        matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      update();
+      return;
+    }
+    documentRef.documentElement.setAttribute('data-tab-transition', '');
+    const transition = documentRef.startViewTransition(update);
+    tabTransition = transition;
+    transition.finished.catch(() => {}).finally(() => {
+      if (tabTransition !== transition) return;
+      documentRef.documentElement.removeAttribute('data-tab-transition');
+      tabTransition = null;
+    });
+  };
   listen(tabBar, 'click', (event) => {
     const button = event.target?.closest?.('[data-mobile-sheet]');
     if (!button) return;
     event.preventDefault();
-    const sheet = nextSheet(currentSheetOf(body), button.dataset.mobileSheet);
-    // Closing from the tab bar returns focus to the tab that was pressed.
-    if (!sheet) returnFocus = button;
-    setSheet(sheet);
-    if (sheet && currentSheetOf(body) === sheet) onTabOpened(sheet);
+    transitionSheet(nextSheet(currentSheetOf(body), button.dataset.mobileSheet), button);
   });
-  listen(backdrop, 'click', () => setSheet(null));
+  listen(backdrop, 'click', () => transitionSheet(null, tabFor(currentSheetOf(body))));
+  if (scenePanel) {
+    if (layersRoot) listen(layersRoot, 'transitionend', measureSheet);
+    listen(scenePanel, 'mobile-scene-close', closeScenes);
+    listen(scenePanel, 'mobile-scene-shot-selected', () => {
+      if (currentSheetOf(body) !== 'scenes' || sceneCloseTimer) return;
+      layersRoot?.style.setProperty('--mobile-scenes-hidden-height', `${(layersRoot?.getBoundingClientRect().height || 0) / 2}px`);
+      body.setAttribute('data-mobile-scenes-lowered', '');
+      requestFrame?.(() => {
+        if (currentSheetOf(body) !== 'scenes' || !body.hasAttribute('data-mobile-scenes-lowered')) return;
+        const selected = scenePanel.querySelector('.mobile-scene-shot[aria-current="true"]');
+        const content = selected?.closest('.mobile-scene-content');
+        if (!content) return;
+        content.scrollTo({
+          top: content.scrollTop + selected.getBoundingClientRect().top - content.getBoundingClientRect().top - 12,
+          behavior: matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+        });
+      });
+      measureSheet();
+    });
+    listen(scenePanel, 'mobile-scene-expand', () => {
+      if (currentSheetOf(body) !== 'scenes') return;
+      if (body.hasAttribute('data-mobile-scenes-lowered'))
+        body.removeAttribute('data-mobile-scenes-lowered');
+      else
+        body.toggleAttribute('data-mobile-scenes-expanded');
+      measureSheet();
+    });
+    listen(scenePanel, 'touchstart', (event) => {
+      sceneTouch = null;
+      if (currentSheetOf(body) !== 'scenes' || event.touches.length !== 1 ||
+          event.target?.closest?.('input, select, textarea, [contenteditable="true"], [role="slider"]')) return;
+      sceneTouch = {
+        id: event.touches[0].identifier,
+        x: event.touches[0].clientX,
+        y: event.touches[0].clientY,
+        target: event.target,
+        handle: !!event.target?.closest?.('[data-mobile-scene-handle]'),
+        claimed: false,
+        height: layersRoot?.getBoundingClientRect().height || 0,
+        expanded: body.hasAttribute('data-mobile-scenes-expanded'),
+        lowered: body.hasAttribute('data-mobile-scenes-lowered'),
+      };
+    }, { passive: true });
+    listen(scenePanel, 'touchmove', (event) => {
+      if (!sceneTouch || event.touches.length !== 1 ||
+          event.touches[0].identifier !== sceneTouch.id || !layersRoot) return;
+      const distance = event.touches[0].clientY - sceneTouch.y;
+      if (Math.abs(distance) < 4) return;
+      if (!sceneTouch.claimed) {
+        const dx = event.touches[0].clientX - sceneTouch.x;
+        if (Math.abs(distance) <= Math.abs(dx) * 1.25 || !event.cancelable) {
+          sceneTouch = null;
+          return;
+        }
+        if (!sceneTouch.handle) {
+          const scrollers = [
+            sceneTouch.target?.closest?.('.mobile-scene-content'),
+            sceneTouch.target?.closest?.('.scene-panel-inner'),
+          ];
+          const canScroll = scrollers.some((content) => content && (
+            distance > 0 ? content.scrollTop > 0 :
+              content.scrollTop + content.clientHeight < content.scrollHeight - 1
+          ));
+          if (canScroll) {
+            sceneTouch = null;
+            return;
+          }
+        }
+        sceneTouch.claimed = true;
+      }
+      event.preventDefault();
+      body.setAttribute('data-mobile-scenes-dragging', '');
+      const viewportHeight = documentRef.defaultView?.innerHeight || globalThis.innerHeight || 0;
+      const tabHeight = tabBar.getBoundingClientRect().height;
+      const compact = viewportHeight * 0.45;
+      const expanded = viewportHeight - tabHeight - 16;
+      if (sceneTouch.lowered)
+        layersRoot.style.setProperty('transform', `translateY(${Math.max(0, sceneTouch.height / 2 + distance)}px)`);
+      else if (!sceneTouch.expanded && distance > 0)
+        layersRoot.style.setProperty('transform', `translateY(${distance}px)`);
+      else
+        layersRoot.style.setProperty('height', `${Math.max(compact, Math.min(expanded, sceneTouch.height - distance))}px`);
+      measureSheet();
+    }, { passive: false });
+    listen(scenePanel, 'touchend', (event) => {
+      if (!sceneTouch || event.touches.length) return;
+      if (!sceneTouch.claimed) {
+        sceneTouch = null;
+        return;
+      }
+      const touch = [...event.changedTouches].find((item) => item.identifier === sceneTouch.id);
+      const distance = touch ? touch.clientY - sceneTouch.y : 0;
+      const wasExpanded = sceneTouch.expanded;
+      const wasLowered = sceneTouch.lowered;
+      sceneTouch = null;
+      body.removeAttribute('data-mobile-scenes-dragging');
+      layersRoot?.style.removeProperty('height');
+      layersRoot?.style.removeProperty('transform');
+      if (wasLowered) {
+        if (distance < -48) body.removeAttribute('data-mobile-scenes-lowered');
+        else if (distance > 80) closeScenes();
+      }
+      else if (!wasExpanded && distance > 80) closeScenes();
+      else if (distance < -48) body.setAttribute('data-mobile-scenes-expanded', '');
+      else if (distance > 48) body.removeAttribute('data-mobile-scenes-expanded');
+      measureSheet();
+    }, { passive: true });
+    listen(scenePanel, 'touchcancel', () => {
+      sceneTouch = null;
+      body.removeAttribute('data-mobile-scenes-dragging');
+      layersRoot?.style.removeProperty('height');
+      layersRoot?.style.removeProperty('transform');
+    }, { passive: true });
+  }
   for (const button of layersFilterButtons) listen(button, 'click', () => {
     const active = button.id === 'mobile-layers-active';
     if (active) body.setAttribute('data-mobile-layer-filter', 'active');
@@ -594,12 +780,20 @@ export function initMobileShell({
       option.setAttribute('aria-pressed', String(option === button));
     if (layersList) layersList.scrollTop = 0;
   });
+  const listenPanelTouch = (panel, grip, type, handler, options) => {
+    listen(grip, type, handler, options);
+    if (panel) listen(panel, type, (event) => {
+      if (!grip.contains(event.target)) handler(event);
+    }, options);
+  };
   if (layersHandle) {
     listen(layersHandle, 'click', () =>
       setLayersExpanded(body.getAttribute('data-mobile-layers-expanded') === null),
     );
-    listen(layersHandle, 'touchstart', (event) => {
-      if (currentSheetOf(body) !== 'layers' || event.touches.length !== 1) return;
+    listenPanelTouch(layersRoot, layersHandle, 'touchstart', (event) => {
+      layersTouch = null;
+      if (currentSheetOf(body) !== 'layers' || event.touches.length !== 1 ||
+          event.target?.closest?.('input, select, textarea, [contenteditable="true"], [role="slider"]')) return;
       const viewportHeight = documentRef.defaultView?.innerHeight || globalThis.innerHeight || 0;
       const tabHeight = tabBar.getBoundingClientRect().height;
       const compactTop = Math.max(0, viewportHeight * 0.55 - tabHeight);
@@ -607,6 +801,8 @@ export function initMobileShell({
       const expanded = body.getAttribute('data-mobile-layers-expanded') !== null;
       layersTouch = {
         id: event.touches[0].identifier,
+        x: event.touches[0].clientX,
+        target: event.target,
         y: event.touches[0].clientY,
         viewportHeight,
         tabHeight,
@@ -616,11 +812,22 @@ export function initMobileShell({
         moved: false,
       };
     }, { passive: true });
-    listen(layersHandle, 'touchmove', (event) => {
+    listenPanelTouch(layersRoot, layersHandle, 'touchmove', (event) => {
       if (!layersTouch || event.touches.length !== 1 ||
           event.touches[0].identifier !== layersTouch.id) return;
       const distance = event.touches[0].clientY - layersTouch.y;
       if (Math.abs(distance) <= 4 || !layersTouch.viewportHeight || !layersRoot) return;
+      if (!layersTouch.moved) {
+        const dx = event.touches[0].clientX - layersTouch.x;
+        const inList = layersList?.contains(layersTouch.target);
+        const canScroll = layersList && layersList.scrollTop + layersList.clientHeight < layersList.scrollHeight - 1;
+        if (Math.abs(distance) <= Math.abs(dx) * 1.25 || !event.cancelable ||
+            (inList && distance > 0 && layersList.scrollTop > 0) ||
+            (inList && distance < 0 && canScroll)) {
+          layersTouch = null;
+          return;
+        }
+      }
       event.preventDefault();
       layersTouch.moved = true;
       body.setAttribute('data-mobile-layers-dragging', '');
@@ -635,7 +842,7 @@ export function initMobileShell({
       }
       measureSheet();
     }, { passive: false });
-    listen(layersHandle, 'touchend', (event) => {
+    listenPanelTouch(layersRoot, layersHandle, 'touchend', (event) => {
       if (!layersTouch || event.touches.length) return;
       const touch = [...event.changedTouches].find(
         (item) => item.identifier === layersTouch.id,
@@ -660,7 +867,7 @@ export function initMobileShell({
       }
       settleLayersDrag(expanded ? distance <= 48 : distance < -48);
     }, { passive: true });
-    listen(layersHandle, 'touchcancel', () => {
+    listenPanelTouch(layersRoot, layersHandle, 'touchcancel', () => {
       const expanded = layersTouch?.expanded;
       layersTouch = null;
       if (expanded !== undefined) settleLayersDrag(expanded);
@@ -681,25 +888,42 @@ export function initMobileShell({
   }
   listen(searchClose, 'click', () => setSearchOpen(false));
   listen(close, 'click', closeDetails);
-  listen(handle, 'touchstart', (event) => {
-    if (event.touches.length !== 1) return;
+  listenPanelTouch(details, handle, 'touchstart', (event) => {
+    detailsTouch = null;
+    if (event.touches.length !== 1 ||
+        event.target?.closest?.('input, select, textarea, [contenteditable="true"], [role="slider"]')) return;
     detailsTouch = {
       id: event.touches[0].identifier,
+      x: event.touches[0].clientX,
+      target: event.target,
+      claimed: false,
       y: event.touches[0].clientY,
       distance: 0,
     };
   }, { passive: true });
-  listen(handle, 'touchmove', (event) => {
+  listenPanelTouch(details, handle, 'touchmove', (event) => {
     if (!detailsTouch || event.touches.length !== 1) return;
     const touch = event.touches[0];
     if (touch.identifier !== detailsTouch.id) return;
-    detailsTouch.distance = Math.max(0, touch.clientY - detailsTouch.y);
-    if (!detailsTouch.distance) return;
+    const dy = touch.clientY - detailsTouch.y;
+    if (!detailsTouch.claimed) {
+      const dx = touch.clientX - detailsTouch.x;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 4) return;
+      let hasScroll = false;
+      for (let node = detailsTouch.target; node && node !== details; node = node.parentElement)
+        if (node.scrollTop > 0) hasScroll = true;
+      if (dy <= Math.abs(dx) * 1.25 || !event.cancelable || hasScroll) {
+        detailsTouch = null;
+        return;
+      }
+      detailsTouch.claimed = true;
+    }
+    detailsTouch.distance = Math.max(0, dy);
     event.preventDefault();
     details.classList.add('dragging');
     details.style.setProperty('transform', `translateY(${detailsTouch.distance}px)`);
   }, { passive: false });
-  listen(handle, 'touchend', (event) => {
+  listenPanelTouch(details, handle, 'touchend', (event) => {
     if (!detailsTouch || event.touches.length) return;
     const distance = detailsTouch.distance;
     detailsTouch = null;
@@ -707,7 +931,7 @@ export function initMobileShell({
     details.style.removeProperty('transform');
     if (distance > 64) closeDetails();
   }, { passive: true });
-  listen(handle, 'touchcancel', () => {
+  listenPanelTouch(details, handle, 'touchcancel', () => {
     detailsTouch = null;
     details.classList.remove('dragging');
     details.style.removeProperty('transform');
@@ -741,6 +965,7 @@ export function initMobileShell({
       if (
         !sheet ||
         sheet === 'layers' ||
+        sheet === 'scenes' ||
         !body.classList.contains(MOBILE_SHELL_CLASS) ||
         event.defaultPrevented ||
         event.touches.length !== 1 ||
@@ -902,6 +1127,8 @@ export function initMobileShell({
       body.classList.remove(MOBILE_SHELL_CLASS);
       body.removeAttribute('data-mobile-search-typing');
       body.removeAttribute('data-mobile-layers-expanded');
+      body.removeAttribute('data-mobile-scenes-expanded');
+      body.removeAttribute('data-mobile-scenes-dragging');
       body.removeAttribute('data-mobile-layer-filter');
       body.removeAttribute(MOBILE_SHEET_ATTR);
       body.style.removeProperty('--mobile-sheet-height');
@@ -913,6 +1140,7 @@ export function initMobileShell({
       backdrop.remove();
       tabBar.remove();
       headerScrim.remove();
+      footerScrim.remove();
       searchBar.remove();
       details.remove();
     },

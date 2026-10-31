@@ -117,7 +117,7 @@
 }
 
 .first-run-choices::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 .first-run-choices::-webkit-scrollbar-thumb {
   background: rgba(54, 220, 255, 0.45);
@@ -421,4 +421,10 @@ body.scene-playback-mode #first-run-launcher {
   .first-run-choices {
     scroll-behavior: auto;
   }
+}
+
+/* Use pixel widths where supported; retain native thin scrollbars elsewhere. */
+@supports selector(::-webkit-scrollbar) {
+.first-run-choices { scrollbar-width: auto; scrollbar-color: auto; }
+.first-run-choices::-webkit-scrollbar-track { background: transparent; }
 }

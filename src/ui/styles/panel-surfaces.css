@@ -228,3 +228,11 @@ body:is(.ui-clean-view, .recording-mode)
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+/* Use pixel widths where supported; retain native thin scrollbars elsewhere. */
+@supports selector(::-webkit-scrollbar) {
+[data-panel-body] { scrollbar-width: auto; scrollbar-color: auto; }
+[data-panel-body]::-webkit-scrollbar { width: 5px; }
+[data-panel-body]::-webkit-scrollbar-thumb { background: var(--glass-border-hover); border-radius: 999px; }
+[data-panel-body]::-webkit-scrollbar-track { background: transparent; }
+}

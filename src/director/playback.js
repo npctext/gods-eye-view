@@ -75,6 +75,7 @@ export async function playSceneQueue(
       activeScene = scene;
       const context = { scene, shot, index, total: queue.length, token };
       for (const phase of SHOT_PHASES) {
+        await token.waitWhilePaused?.();
         if (cancelled()) break;
         await adapter[phase](context);
       }

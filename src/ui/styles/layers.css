@@ -40,18 +40,6 @@
   transform: translateY(0);
 }
 
-#data-panel .panel-glow {
-  position: absolute;
-  inset: -20px;
-  background: radial-gradient(
-    ellipse at center,
-    var(--accent-dim) 0%,
-    transparent 60%
-  );
-  filter: blur(20px);
-  opacity: 0.25;
-  pointer-events: none;
-}
 
 .data-panel-inner {
   position: relative;
@@ -90,7 +78,7 @@
 }
 
 .data-toggle-list::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 .data-toggle-list::-webkit-scrollbar-track {
@@ -985,18 +973,6 @@
     animation: none;
   }
 }
-#global-context-panel .panel-glow {
-  position: absolute;
-  inset: -20px;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(98, 181, 255, 0.2) 0%,
-    transparent 62%
-  );
-  filter: blur(20px);
-  opacity: 0.24;
-  pointer-events: none;
-}
 .global-context-panel-inner {
   position: relative;
   display: flex;
@@ -1397,4 +1373,19 @@ body.recording-mode #right-context-rail > [data-panel-id] {
   #right-context-rail #recent-imagery-panel.collapsed {
     width: 100%;
   }
+}
+
+/* Use pixel widths where supported; retain native thin scrollbars elsewhere. */
+@supports selector(::-webkit-scrollbar) {
+.data-toggle-list { scrollbar-width: auto; scrollbar-color: auto; }
+
+#right-context-rail.layout-focus > #pp-toggles:not(.collapsed) { scrollbar-width: auto; scrollbar-color: auto; }
+#right-context-rail.layout-focus > #pp-toggles:not(.collapsed)::-webkit-scrollbar { width: 5px; }
+#right-context-rail.layout-focus > #pp-toggles:not(.collapsed)::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.4); border-radius: 999px; }
+#right-context-rail.layout-focus > #pp-toggles:not(.collapsed)::-webkit-scrollbar-track { background: transparent; }
+
+#space-mission-panel-host .space-mission-roster-list { scrollbar-width: auto; scrollbar-color: auto; }
+#space-mission-panel-host .space-mission-roster-list::-webkit-scrollbar { width: 5px; }
+#space-mission-panel-host .space-mission-roster-list::-webkit-scrollbar-thumb { background: rgba(34, 230, 230, 0.38); border-radius: 999px; }
+#space-mission-panel-host .space-mission-roster-list::-webkit-scrollbar-track { background: transparent; }
 }

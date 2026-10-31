@@ -1,12 +1,11 @@
   <div id="left-panel-stack">
   <!-- Data Layer Toggle Panel -->
   <div id="data-panel" class="panel-collapsible collapsed active" data-panel-id="data-panel">
-    <div class="panel-glow"></div>
     <div class="data-panel-inner">
       <button id="mobile-layers-handle" class="mobile-details-handle" type="button" aria-label="Expand layers" aria-expanded="false" data-i18n-aria-label></button>
-      <div class="mobile-details-header mobile-layers-header">
-        <span class="mobile-layers-title"><span class="mobile-layers-title-icon" aria-hidden="true"></span><span data-i18n>LAYERS</span></span>
-        <button id="mobile-layers-close" class="mobile-details-close" type="button" aria-label="Close" data-i18n-aria-label></button>
+      <div class="mobile-details-header mobile-sheet-header">
+        <div class="mobile-sheet-heading"><span class="mobile-sheet-title" data-i18n>LAYERS</span><span id="mobile-layers-count" class="mobile-sheet-count">0</span></div>
+        <button id="mobile-layers-close" class="mobile-details-close mobile-sheet-control mobile-sheet-close" type="button" aria-label="Close" data-i18n-aria-label><span class="mobile-sheet-close-icon" aria-hidden="true"></span></button>
       </div>
       <div id="mobile-layers-filter" role="group" aria-label="Filter layers">
         <button id="mobile-layers-all" type="button" aria-pressed="true" data-i18n>All</button>
@@ -25,7 +24,6 @@
 
   <!-- CCTV Coverage Panel -->
   <div id="cctv-panel" class="panel-collapsible collapsed" data-panel-id="cctv-panel">
-    <div class="panel-glow"></div>
     <div class="cctv-panel-inner" data-rail-scroller>
       <div class="panel-header">
         <span class="panel-title" data-i18n>CCTV</span>
@@ -85,7 +83,6 @@
 
   <!-- Street Level Panel (moved into #right-context-rail at runtime) -->
   <div id="street-level-panel" class="panel-collapsible collapsed" data-panel-id="street-level-panel">
-    <div class="panel-glow"></div>
     <div class="street-level-panel-inner" data-rail-scroller>
       <div class="panel-header">
         <span class="panel-title" data-i18n>STREET LEVEL</span>
@@ -155,7 +152,6 @@
 
   <!-- Scene Director Panel -->
   <div id="scene-panel" class="panel-collapsible collapsed" data-panel-id="scene-panel">
-    <div class="panel-glow"></div>
     <div class="scene-panel-inner">
       <div class="panel-header">
         <span class="panel-title" data-i18n>SCENES</span>
@@ -164,23 +160,23 @@
       </div>
       <div class="scene-controls">
         <select class="gev-field" id="scene-select" aria-label="Scene recipe" data-i18n-aria-label></select>
-        <button id="scene-new-btn" type="button" class="gev-action-button scene-btn" data-i18n>NEW</button>
-        <button id="scene-delete-btn" type="button" class="gev-action-button gev-action-button--danger scene-btn scene-btn-danger" data-i18n>DEL</button>
+        <button id="scene-new-btn" type="button" class="gev-action-button scene-btn" data-i18n>New</button>
+        <button id="scene-delete-btn" type="button" class="gev-action-button gev-action-button--danger scene-btn scene-btn-danger" data-i18n>Delete</button>
       </div>
       <div class="scene-controls">
-        <button id="scene-capture-btn" type="button" class="gev-action-button scene-btn" data-i18n>CAPTURE SHOT</button>
-        <button id="scene-update-shot-btn" type="button" class="gev-action-button scene-btn" data-i18n>UPDATE SHOT</button>
+        <button id="scene-capture-btn" type="button" class="gev-action-button scene-btn" data-i18n>Capture shot</button>
+        <button id="scene-update-shot-btn" type="button" class="gev-action-button scene-btn" data-i18n>Update shot</button>
       </div>
       <div id="scene-shot-list" class="scene-shot-list"></div>
       <div class="scene-controls">
-        <button id="scene-start-btn" type="button" class="gev-action-button scene-btn" data-i18n>START</button>
-        <button id="scene-stop-btn" type="button" class="gev-action-button gev-action-button--danger scene-btn scene-btn-danger" data-i18n>STOP</button>
-        <button id="scene-next-btn" type="button" class="gev-action-button scene-btn" data-i18n>NEXT</button>
+        <button id="scene-start-btn" type="button" class="gev-action-button scene-btn" data-i18n>Start</button>
+        <button id="scene-stop-btn" type="button" class="gev-action-button gev-action-button--danger scene-btn scene-btn-danger" data-i18n>Stop</button>
+        <button id="scene-next-btn" type="button" class="gev-action-button scene-btn" data-i18n>Next</button>
       </div>
       <div class="scene-controls">
-        <button id="scene-export-btn" type="button" class="gev-action-button scene-btn" data-i18n>EXPORT PRESETS</button>
-        <button id="scene-import-btn" type="button" class="gev-action-button scene-btn" data-i18n>IMPORT</button>
-        <button id="scene-download-btn" type="button" class="gev-action-button scene-btn" data-i18n>RUN LOG</button>
+        <button id="scene-export-btn" type="button" class="gev-action-button scene-btn" data-i18n>Export presets</button>
+        <button id="scene-import-btn" type="button" class="gev-action-button scene-btn" data-i18n>Import</button>
+        <button id="scene-download-btn" type="button" class="gev-action-button scene-btn" data-i18n>Run log</button>
         <input type="file" id="scene-import-file" accept="application/json,.json" hidden />
       </div>
       <div class="scene-progress">

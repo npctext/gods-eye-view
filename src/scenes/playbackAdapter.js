@@ -2,9 +2,10 @@
 import { t } from '../i18n/index.js';
 import { displaySceneTitle, displayShotTitle } from './recipes.js';
 
-export function createScenePlaybackAdapter(director, defaultShotDurationSec) {
+export function createScenePlaybackAdapter(director, defaultShotDurationSec, resumeState = null) {
   let timing;
   let travel;
+  const resumed = (shot) => resumeState?.shot.id === shot.id ? resumeState : null;
   return {
     async releaseScene(scene, token) {
       const released = await director._releaseSceneLayers(scene, token);
@@ -40,7 +41,10 @@ export function createScenePlaybackAdapter(director, defaultShotDurationSec) {
     async applyLayers({ scene, shot, token }) {
       director._setSceneMediaPlayback(scene, shot, token);
       const result = await director._applyLayerStates(
-        director._layerStatesForShot(scene, shot),
+        director._layerStatesForShot(scene, shot, {
+          sceneSeek: resumed(shot) ? { ...resumed(shot), running: true } : null,
+          cameraSettled: (resumed(shot)?.cameraProgress ?? 0) >= 1,
+        }),
         token,
       );
       if (
@@ -54,17 +58,19 @@ export function createScenePlaybackAdapter(director, defaultShotDurationSec) {
     travel({ scene, shot, token }) {
       director._loadedSceneId = scene.id;
       const duration = shot.durationSec || defaultShotDurationSec;
-      timing = director._startSceneClockTicker(scene, shot, token);
-      travel = director._beginShotTravel(scene, shot, duration);
-      const flight = director._flyShotCamera(scene, shot, duration, token);
+      const seek = resumed(shot);
+      timing = director._clock.startScene(scene, shot, token, seek?.shotElapsedSec || 0);
+      if (seek?.cameraProgress >= 1) { travel = null; return; }
+      travel = director._beginShotTravel(scene, shot, duration * (1 - (seek?.cameraProgress || 0)));
+      const flight = director._flyShotCamera(scene, shot, duration, token, seek?.cameraProgress || 0);
       director._publishShotTravel(scene, shot, travel);
       return flight;
     },
     settle({ scene, shot, token }) {
-      director._settleShotLayerStates(scene, shot, token, travel);
+      director._settleShotLayerStates(scene, shot, token, travel, resumed(shot) ? { ...resumed(shot), running: true } : null);
     },
     hold({ scene, shot, token }) {
-      return director._holdShot(scene, shot, token);
+      return director._holdShot(scene, shot, token, resumed(shot)?.holdElapsedSec || 0);
     },
     completeShot({ scene, shot, index }) {
       director._clock.stopSceneTimer();

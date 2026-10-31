@@ -465,7 +465,7 @@
   text-overflow: ellipsis;
 }
 
-:root[data-scope-mask='off']:not([data-ui-theme='cyber'])
+/*:root[data-scope-mask='off']:not([data-ui-theme='cyber'])
   #title-bar
   h1::before {
   content: '';
@@ -474,7 +474,7 @@
   z-index: -1;
   border-radius: 2px;
   background: rgba(0, 0, 0, 0.7);
-}
+}*/
 
 :root[data-scope-mask='off']:not([data-ui-theme='cyber'])
   :is(#title-bar .subtitle, #style-indicator .indicator-label) {

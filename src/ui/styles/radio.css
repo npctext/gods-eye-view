@@ -1164,3 +1164,11 @@ html:not([lang='en']) .data-row-list-text {
 .sdr-feed-status[hidden] {
   display: none;
 }
+
+/* Use pixel widths where supported; retain native thin scrollbars elsewhere. */
+@supports selector(::-webkit-scrollbar) {
+.radio-panel-inner { scrollbar-width: auto; scrollbar-color: auto; }
+.radio-panel-inner::-webkit-scrollbar { width: 5px; }
+.radio-panel-inner::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.46); border-radius: 999px; }
+.radio-panel-inner::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.06); }
+}

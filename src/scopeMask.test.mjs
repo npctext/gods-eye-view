@@ -31,6 +31,28 @@ import { SCOPE_FEATHER_RATIO_MAX, clampScopeFeatherPct } from './scopeMaskPolicy
 
 beforeEach(() => _resetScopeMaskForTest());
 
+test('Scope defaults off on mobile and on for desktop, with manual overrides', async () => {
+  const original = globalThis.matchMedia;
+  try {
+    for (const mobile of [true, false]) {
+      globalThis.matchMedia = (query) => {
+        assert.equal(query, '(max-width: 720px)');
+        return { matches: mobile };
+      };
+      const scope = await import(`./scopeMask.js?mobile-default=${mobile}`);
+      assert.equal(scope.isScopeMaskEnabled(), !mobile);
+      scope.setScopeMaskEnabled(true);
+      assert.equal(scope.isScopeMaskEnabled(), true);
+      scope.setScopeMaskEnabled(false);
+      assert.equal(scope.isScopeMaskEnabled(), false);
+      scope.destroyScopeMask();
+    }
+  } finally {
+    if (original === undefined) delete globalThis.matchMedia;
+    else globalThis.matchMedia = original;
+  }
+});
+
 test('geometry anchors the visible edge to the shared keyhole radius', () => {
   const geo = scopeMaskGeometry(1440, 860, 0.4);
   const keyholeR = 860 * 0.5 * KEYHOLE_OUTER_RADIUS;

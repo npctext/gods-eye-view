@@ -6,9 +6,7 @@
  * @returns {number} Natural height in CSS pixels.
  */
 export function measurePanelNaturalHeight(panel, getComputedStyle) {
-  const inner = [...panel.children].find(
-    (child) => !child.classList.contains('panel-glow'),
-  );
+  const inner = panel.children[0];
   if (!inner)
     return Math.ceil(
       panel.scrollHeight || panel.getBoundingClientRect().height,

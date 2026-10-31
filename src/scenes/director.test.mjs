@@ -1657,3 +1657,144 @@ test('a caught run failure resolves as run-failed, not success (#971)', async ()
     );
   } finally { console.warn = warn; await director.destroy(); restore(); }
 });
+
+test('mobile transport pauses a flight, resumes it, and closes while paused', async () => {
+  const { director, viewer, restore } = makeDirector();
+  let flight;
+  const flights = [];
+  viewer.camera.flyTo = (options) => { flight = options; flights.push(options); };
+  viewer.camera.cancelFlight = () => flight?.cancel();
+  try {
+    assert.equal(await director._transport.open('scene-1'), true);
+    for (let n = 0; n < 50 && !flight; n++) await new Promise(setImmediate);
+    assert.ok(flight);
+    director._transport.toggle();
+    assert.equal(director._runToken.paused, true);
+    assert.equal(director._transport.getState().status, 'paused');
+    assert.equal(director._running, true, 'pause retains the queue and resources');
+    director._transport.toggle();
+    assert.equal(director._runToken.paused, false);
+    assert.equal(flights.length, 2);
+    director._transport.toggle();
+    director._transport.close();
+    await director._waitForRunIdle();
+    assert.equal(director._transport.getState().visible, false);
+    assert.equal(director.getPlaybackTimingState().activeTimers, 0);
+  } finally { await director.destroy(); restore(); }
+});
+
+test('resuming from a scene time plays only the remaining camera and hold phases', async () => {
+  const { director, restore } = makeDirector();
+  const flights = [], holds = [];
+  director._flyShotCamera = async (_scene, shot, duration, _token, progress) => flights.push({ id: shot.id, duration, progress });
+  director._holdShot = async (_scene, shot, _token, elapsed) => holds.push({ id: shot.id, elapsed });
+  try {
+    await director.startScene('scene-1', { single: true, preview: false, fromProgress: 0.75 });
+    assert.equal(flights.length, 1);
+    assert.equal(flights[0].id, 'shot-b');
+    assert.ok(Math.abs(flights[0].progress - 0.5) < 0.0001);
+    const scene = director._project.scenes[0];
+    scene.shots[1].holdSec = 0.4;
+    flights.length = holds.length = 0;
+    await director.startScene('scene-1', { single: true, preview: false, fromProgress: 0.75 });
+    assert.equal(flights.length, 0, 'a resumed hold does not fly again');
+    assert.ok(Math.abs(holds[0].elapsed - 0.2) < 0.0001);
+  } finally { await director.destroy(); restore(); }
+});
+
+test('closing a player during a pending seek prevents playback from restarting', async () => {
+  const { director, restore } = makeDirector();
+  let resolveSeek;
+  try {
+    director._flyShotCamera = async () => {};
+    director._holdShot = async () => {};
+    await director._transport.open('scene-1');
+    await director._waitForRunIdle();
+    director.seekScene = () => new Promise((resolve) => { resolveSeek = resolve; });
+    const seek = director._transport.seek(0.5, true);
+    director._transport.close();
+    resolveSeek(true);
+    assert.equal(await seek, false);
+    assert.equal(director._running, false);
+    assert.equal(director._transport.getState().visible, false);
+  } finally { await director.destroy(); restore(); }
+});
+
+test('interaction pause during loading prevents camera travel until explicit resume', async () => {
+  const { director, viewer, styleManager, restore } = makeDirector();
+  let releaseVisual;
+  const visual = new Promise((resolve) => { releaseVisual = resolve; });
+  styleManager.applyVisualState = () => visual;
+  let flight;
+  viewer.camera.flyTo = (options) => { flight = options; };
+  viewer.camera.cancelFlight = () => flight?.cancel();
+  try {
+    await director._transport.open('scene-1');
+    const token = director._runToken;
+    director._transport.pause();
+    assert.equal(director._transport.getState().status, 'paused');
+    releaseVisual();
+    for (let n = 0; n < 5; n++) await new Promise(setImmediate);
+    assert.equal(flight, undefined, 'a pending load must not fly after another action');
+    assert.equal(director._transport.resume(), true);
+    for (let n = 0; n < 50 && !flight; n++) await new Promise(setImmediate);
+    assert.ok(flight);
+    assert.equal(director._runToken, token, 'Play continues the same queue');
+    assert.equal(director._transport.getState().status, 'playing');
+  } finally { releaseVisual(); director._transport.close(); await director.destroy(); restore(); }
+});
+
+test('interaction pause cancels automatic resume after an in-flight seek', async () => {
+  const { director, restore } = makeDirector();
+  let resolveSeek;
+  try {
+    director._flyShotCamera = async () => {};
+    director._holdShot = async () => {};
+    await director._transport.open('scene-1');
+    await director._waitForRunIdle();
+    let starts = 0;
+    const start = director.startScene.bind(director);
+    director.startScene = (...args) => { starts++; return start(...args); };
+    director.seekScene = () => new Promise((resolve) => { resolveSeek = resolve; });
+    const seek = director._transport.seek(0.5, true);
+    director._transport.pause();
+    const scene = director._project.scenes[0];
+    director._publishSceneClock(scene, scene.shots[1], 0.2, { running: false, seeking: true });
+    resolveSeek(true);
+    assert.equal(await seek, true);
+    assert.equal(starts, 0);
+    assert.equal(director._transport.getState().status, 'paused');
+    assert.equal(director._transport.getState().progress, 0.5);
+    director._transport.resume();
+    assert.equal(starts, 1);
+    await director._waitForRunIdle();
+  } finally { await director.destroy(); restore(); }
+});
+
+test('Next scene starts the next non-empty scene from zero and does not wrap', async () => {
+  const { director, viewer, restore } = makeDirector();
+  let flight;
+  const second = structuredClone(director._project.scenes[0]);
+  second.id = 'scene-2';
+  second.shots.forEach((shot) => { shot.id += '-next'; });
+  director._project.scenes.push({ id: 'empty', title: 'Empty', shots: [] }, second);
+  viewer.camera.flyTo = (options) => { flight = options; };
+  viewer.camera.cancelFlight = () => flight?.cancel();
+  try {
+    await director._transport.open('scene-1');
+    for (let n = 0; n < 50 && !flight; n++) await new Promise(setImmediate);
+    assert.ok(flight);
+    director._transport.pause();
+    assert.equal(director._transport.getState().nextSceneId, 'scene-2');
+    flight = null;
+    assert.equal(await director._transport.nextScene(), true);
+    for (let n = 0; n < 50 && !flight; n++) await new Promise(setImmediate);
+    assert.ok(flight);
+    assert.equal(director._transport.getState().sceneId, 'scene-2');
+    assert.equal(director._transport.getState().index, 0);
+    assert.equal(director._transport.getState().status, 'playing');
+    assert.equal(director._runToken.paused, undefined);
+    assert.equal(director._transport.getState().nextSceneId, null);
+    assert.equal(await director._transport.nextScene(), false);
+  } finally { director._transport.close(); await director.destroy(); restore(); }
+});

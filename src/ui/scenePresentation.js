@@ -123,13 +123,13 @@ export function renderSceneShots(
     const actions = document.createElement('div');
     actions.className = 'scene-shot-actions';
     const loadButton = createActionButton({
-      label: t('LOAD'),
+      label: t('Load'),
       className: 'scene-shot-btn',
       size: 'compact',
     });
     listen(loadButton, 'click', () => load(scene.id, shot.id));
     const deleteButton = createActionButton({
-      label: t('DEL'),
+      label: t('Delete'),
       className: 'scene-shot-btn scene-shot-danger',
       size: 'compact',
       variant: 'danger',

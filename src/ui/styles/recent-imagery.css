@@ -20,18 +20,6 @@
     0 0 0 1px rgba(255, 255, 255, 0.03) inset,
     0 1px 0 rgba(255, 255, 255, 0.06) inset;
 }
-#recent-imagery-panel .panel-glow {
-  position: absolute;
-  inset: -18px;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(0, 212, 255, 0.16) 0%,
-    transparent 65%
-  );
-  filter: blur(16px);
-  opacity: 0.25;
-  pointer-events: none;
-}
 #recent-imagery-panel .panel-header {
   flex: 0 0 auto;
 }
@@ -523,4 +511,17 @@ body.gev-imagery-box .cesium-widget canvas {
   #recent-imagery-panel-body {
     max-height: 48vh;
   }
+}
+
+/* Use pixel widths where supported; retain native thin scrollbars elsewhere. */
+@supports selector(::-webkit-scrollbar) {
+#recent-imagery-panel-body { scrollbar-width: auto; scrollbar-color: auto; }
+#recent-imagery-panel-body::-webkit-scrollbar { width: 5px; }
+#recent-imagery-panel-body::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.46); border-radius: 999px; }
+#recent-imagery-panel-body::-webkit-scrollbar-track { background: transparent; }
+
+.recent-imagery-readout .ri-strip { scrollbar-width: auto; scrollbar-color: auto; }
+.recent-imagery-readout .ri-strip::-webkit-scrollbar { width: 5px; }
+.recent-imagery-readout .ri-strip::-webkit-scrollbar-thumb { background: rgba(165, 188, 199, 0.35); border-radius: 999px; }
+.recent-imagery-readout .ri-strip::-webkit-scrollbar-track { background: transparent; }
 }

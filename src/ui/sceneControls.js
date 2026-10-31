@@ -1,5 +1,7 @@
 /** Own Scene panel listeners and presentation through project reads and actions. */
 import { t, msg } from '../i18n/index.js';
+import { mountMobileSceneView } from './mobileSceneView.js';
+import { mountMobileScenePlayer } from './mobileScenePlayer.js';
 import {
   sceneElements,
   renderSceneOptions,
@@ -11,7 +13,8 @@ import {
 } from './scenePresentation.js';
 
 export class SceneControls {
-  constructor({ read, actions, subscribe, elements = sceneElements() }) {
+  constructor({ read, actions, subscribe, player, elements = sceneElements() }) {
+    this.player = player;
     this.read = read;
     this.actions = actions;
     this.elements = elements;
@@ -62,6 +65,8 @@ export class SceneControls {
       this.setProgress(0);
       this.setButtons(false);
     }
+    this.mobileView = mountMobileSceneView(this);
+    this.mobilePlayer = mountMobileScenePlayer(player);
   }
 
   /** Apply only the presentation affected by an action; selection keeps row identity. */
@@ -108,6 +113,11 @@ export class SceneControls {
     if (type === 'shot-loaded') this.updateStatus(state.status);
     if (type === 'run-event' && change.event === 'shot_start')
       this.setButtons(state.running);
+    if (['progress-changed', 'runtime-changed', 'status-changed', 'run-event'].includes(type) ||
+        (state.running && this.player?.getState().visible &&
+          ['scene-options-changed', 'shots-changed', 'buttons-changed'].includes(type)))
+      this.mobileView?.updatePlayback();
+    else this.mobileView?.render();
   }
 
   listen(target, type, callback, removers = this.removers) {
@@ -225,7 +235,7 @@ export class SceneControls {
       this.playbackKeyRemover = null;
     } else if (!this.destroyed && !this.playbackKeyRemover) {
       const onKeyDown = (event) => {
-        if (!this.destroyed && event.key === 'Escape' && this.read().running)
+        if (!this.destroyed && event.key === 'Escape' && this.read().running && !this.player?.getState().visible)
           this.run('stop', msg('Stopped (Esc)'));
       };
       document.addEventListener('keydown', onKeyDown);
@@ -247,6 +257,8 @@ export class SceneControls {
     ])
       remove();
     if (this.elements.shots) this.elements.shots.textContent = '';
+    this.mobileView?.destroy();
+    this.mobilePlayer?.destroy();
     presentSceneRuntime(this.elements.runtime, '');
     this.setPlaybackActive(false);
   }

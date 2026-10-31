@@ -19,6 +19,7 @@ import { createStateChannel } from '../app/stateChannel.js';
 import { SceneControls } from '../ui/scenes.js';
 import { buildPlaybackQueue, playSceneQueue } from '../director/playback.js';
 import { createScenePlaybackAdapter } from './playbackAdapter.js';
+import { createSceneTransport } from './transport.js';
 import * as Cesium from 'cesium';
 import {
   SCENE_APPEND_RECIPES,
@@ -119,6 +120,10 @@ export class SceneDirector {
       applyPose: (pose) => this._setCameraView(pose),
     });
     const yieldCamera = (event) => {
+      if (this._transport?.getState().visible && !this._claimingCamera) {
+        this.pauseScene();
+        return;
+      }
       // A settled feature click belongs to the action picker, not a new camera gesture.
       if (
         event?.type === 'pointerdown' &&
@@ -208,6 +213,7 @@ export class SceneDirector {
         }
       }
     }
+    this._transport = createSceneTransport(this);
     this._initUI();
     this._visibilityUnsubscribe =
       this.dataManager.subscribeVisibilityRequests?.((change) => {
@@ -244,6 +250,7 @@ export class SceneDirector {
     this._interactions?.destroy();
     this._dataPacks?.destroy();
     this._controls?.destroy();
+    this._transport?.destroy();
     this._state.destroy();
     this._destroyPromise = Promise.resolve().then(async () => {
       this.stopScene(msg('Stopped'));
@@ -409,6 +416,7 @@ export class SceneDirector {
   _initUI() {
     this._sharing?.mount();
     this._controls = new SceneControls({
+      player: this._transport,
       subscribe: (listener) => this.subscribe(listener),
       read: () => ({
         // The panel shows display titles; shots keep the stored title for
@@ -424,6 +432,8 @@ export class SceneDirector {
         selectedSceneId: this._selectedSceneId,
         selectedShotId: this._selectedShotId,
         running: this._running,
+        progress: this._presentation.progress,
+        runtime: this._presentation.runtime,
         hasRun: !!this._lastRunJson,
       }),
       actions: {
@@ -443,11 +453,20 @@ export class SceneDirector {
           this._saveProject();
           this._shotOutcome('shot-renamed', scene, shot);
         },
+        renameScene: (title) => {
+          const scene = this._getSelectedScene();
+          if (!scene || !title.trim()) return;
+          scene.title = title.trim();
+          this._saveProject();
+          this._renderSceneSelect();
+        },
+        editDetails: () => this._sharing.edit(),
         create: (name) => this._createScene(name),
         deleteScene: () => this._deleteSelectedScene(),
         capture: () => this.captureShot(),
         update: () => this.updateSelectedShot(),
         start: (id) => this.startScene(id),
+        startSingle: (id) => this.startScene(id, { single: true }),
         stop: (reason) => this.stopScene(reason),
         next: () => this.runNextScene(),
         export: () => this.exportProject(),
@@ -456,6 +475,7 @@ export class SceneDirector {
         download: () => this.downloadLastRunMetadata(),
         load: (sceneId, shotId) => this.loadShot(sceneId, shotId),
         deleteShot: (sceneId, shotId) => this.deleteShot(sceneId, shotId),
+        share: () => this._sharing.share(),
       },
     });
   }
@@ -1306,7 +1326,7 @@ export class SceneDirector {
   }
 
   /** Signal camera-dependent layers only after the authored flight completes. */
-  _settleShotLayerStates(scene, shot, token = null, cameraTravel = null) {
+  _settleShotLayerStates(scene, shot, token = null, cameraTravel = null, sceneSeek = null) {
     if (token?.cancelled) return false;
     const settledTravel = cameraTravel
       ? {
@@ -1319,6 +1339,7 @@ export class SceneDirector {
     const states = this._layerStatesForShot(scene, shot, {
       cameraSettled: true,
       cameraTravel: settledTravel,
+      sceneSeek: sceneSeek?.cameraProgress >= 1 ? sceneSeek : null,
     });
     for (const [layerId, state] of Object.entries(states)) {
       if (
@@ -1759,13 +1780,18 @@ export class SceneDirector {
 
   async _startScene(
     sceneId,
-    { single = false, afterShotId = null, preview = true } = {},
+    { single = false, afterShotId = null, preview = true, fromProgress = null } = {},
   ) {
     if (this._running) return { started: false, reason: 'already-running' };
 
     const startSceneId =
       sceneId || this._selectedSceneId || this._project.scenes[0]?.id;
     let queue = this._buildPlaybackQueue(startSceneId, { single });
+    const resumedScene = this._project.scenes.find(({ id }) => id === startSceneId);
+    const resumeState = fromProgress !== null
+      ? this._sceneSeekState(resumedScene, fromProgress)
+      : null;
+    if (resumeState) queue = queue.slice(resumeState.shotIndex);
     if (afterShotId !== null) {
       const index = queue.findIndex(
         ({ scene, shot }) =>
@@ -1805,6 +1831,7 @@ export class SceneDirector {
 
     // Transition to running state
     this._running = true;
+    this._clock.resume();
     this._previewRun = preview;
     if (preview) this._setPlaybackActive(true);
     this._setButtons(true);
@@ -1818,6 +1845,18 @@ export class SceneDirector {
     this._runAbort = new AbortController();
     this._runToken = { cancelled: false, signal: this._runAbort.signal };
     const token = this._runToken;
+    token.now = () => this._clock.now();
+    token.waitWhilePaused = () => token.paused && !token.cancelled && !token.signal.aborted
+      ? new Promise((resolve) => {
+          const finish = () => {
+            token.signal.removeEventListener('abort', finish);
+            token.resumeWaiter = null;
+            resolve();
+          };
+          token.resumeWaiter = finish;
+          token.signal.addEventListener('abort', finish, { once: true });
+        })
+      : undefined;
     if (preview) {
       this.styleManager.setRecordingMode(true, {
         hidePanels: true,
@@ -1854,7 +1893,7 @@ export class SceneDirector {
     try {
       await playSceneQueue(queue, {
         token,
-        adapter: createScenePlaybackAdapter(this, DEFAULT_SHOT_DURATION_SEC),
+        adapter: createScenePlaybackAdapter(this, DEFAULT_SHOT_DURATION_SEC, resumeState),
         previousScene: this._project.scenes.find(
           (scene) => scene.id === this._loadedSceneId,
         ),
@@ -1915,6 +1954,38 @@ export class SceneDirector {
    *   is logged as data and translated only for the status line (callers mark
    *   theirs with msg()).
    */
+  pauseScene() {
+    const token = this._runToken;
+    if (!this._running || !token || token.cancelled || token.paused) return false;
+    token.paused = true;
+    this._clock.pause();
+    this._cameraMotion?.pause();
+    this._flightControl?.pause();
+    for (const module of this._sceneMediaModules || []) module.setSceneMediaPaused?.(true);
+    this._publishPauseState(false);
+    return true;
+  }
+
+  resumeScene() {
+    const token = this._runToken;
+    if (!this._running || !token?.paused || token.cancelled) return false;
+    token.paused = false;
+    this._clock.resume();
+    this._cameraMotion?.resume();
+    this._flightControl?.resume();
+    for (const module of this._sceneMediaModules || []) module.setSceneMediaPaused?.(false);
+    token.resumeWaiter?.();
+    token.resumeWaiter = null;
+    this._publishPauseState(true);
+    return true;
+  }
+
+  _publishPauseState(running) {
+    const snapshot = this._clock.snapshot;
+    const { scene, shot } = this._getShot(snapshot?.sceneId, snapshot?.shotId);
+    if (scene && shot) this._publishSceneClock(scene, shot, snapshot.sceneElapsedSec, { running });
+  }
+
   stopScene(reason = msg('Stopped')) {
     this._setSceneMediaPlayback();
     this._interactions?.clear();
@@ -2321,17 +2392,18 @@ export class SceneDirector {
   }
 
   /** Use the authored sampler only for explicit moves; ordinary shots keep their existing flights. */
-  async _flyShotCamera(scene, shot, durationSec, token) {
+  async _flyShotCamera(scene, shot, durationSec, token, startProgress = 0) {
     const move = resolveCameraMove(scene, shot);
     if (!move)
       return this._flyCamera(
         resolveCameraPose(scene, shot.camera),
-        durationSec,
+        durationSec * (1 - startProgress),
         token,
       );
     const completed = await this._cameraMotion.play(
       { ...move, durationSec },
       token,
+      startProgress,
     );
     if (!completed && !token.cancelled && !this._destroyed)
       this.stopScene(msg('Camera move interrupted'));
@@ -2367,33 +2439,58 @@ export class SceneDirector {
       // Guard against double-resolve from both callback and timeout
       let done = false;
       let timer;
+      let paused = false;
+      let remaining = duration;
+      let startedAt = Date.now();
       const finish = () => {
         if (done) return;
         done = true;
         clearTimeout(timer);
+        token.signal?.removeEventListener('abort', finish);
+        if (this._flightControl === control) this._flightControl = null;
         resolve();
       };
-
-      this.viewer.camera.flyTo({
+      const control = {
+        pause: () => {
+          if (done || paused) return;
+          remaining = Math.max(0.001, remaining - (Date.now() - startedAt) / 1000);
+          paused = true;
+          clearTimeout(timer);
+          this.viewer.camera.cancelFlight();
+        },
+        resume: () => {
+          if (done || !paused) return;
+          paused = false;
+          fly();
+        },
+      };
+      this._flightControl = control;
+      token.signal?.addEventListener('abort', finish, { once: true });
+      const fly = () => {
+        startedAt = Date.now();
+        this.viewer.camera.flyTo({
         destination,
         orientation: {
           heading: Cesium.Math.toRadians(cameraState.heading || 0),
           pitch: Cesium.Math.toRadians(cameraState.pitch ?? -35),
           roll: Cesium.Math.toRadians(cameraState.roll || 0),
         },
-        duration,
+        duration: remaining,
         easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
         complete: finish,
-        cancel: finish,
+        cancel: () => { if (!paused) finish(); },
       });
 
       // Safety timeout in case Cesium callbacks fail to fire
-      if (!done) timer = setTimeout(finish, (duration + 0.6) * 1000);
+        if (!done) timer = setTimeout(finish, (remaining + 0.6) * 1000);
+      };
+      fly();
+      if (token.paused) control.pause();
     });
   }
 
   /** Let an opt-in media owner finish playback and its fade before the next flight. */
-  async _holdShot(scene, shot, token) {
+  async _holdShot(scene, shot, token, elapsedSec = 0) {
     const readers = Object.entries(
       this._layerStatesForShot(scene, shot),
     ).flatMap(([id, state]) => {
@@ -2415,14 +2512,14 @@ export class SceneDirector {
         : [];
     });
     if (!readers.length) {
-      await this._sleep(this._effectiveShotHoldSec(scene, shot) * 1000, token);
+      await this._sleep(Math.max(0, this._effectiveShotHoldSec(scene, shot) - elapsedSec) * 1000, token);
       return;
     }
-    const began = Date.now();
+    const began = this._clock.now();
     while (!token.cancelled && !token.signal?.aborted) {
       const pending = readers.filter(({ read }) => read()?.pending === true);
       if (!pending.length) return;
-      if (pending.some(({ maxWaitMs }) => Date.now() - began >= maxWaitMs)) {
+      if (pending.some(({ maxWaitMs }) => this._clock.now() - began >= maxWaitMs)) {
         this.stopScene(msg('Scene media timed out'));
         throw new Error(
           'Scene media did not finish within its bounded playback window',
@@ -2462,6 +2559,7 @@ export class SceneDirector {
    * and resets UI buttons to the idle state.
    */
   _finishRun() {
+    this._clock.resume();
     this._setSceneMediaPlayback();
     this._clock.finish();
     this._setPlaybackKeyboardEnabled(false);

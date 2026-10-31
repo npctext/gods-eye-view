@@ -18,18 +18,6 @@
     0 0 0 1px rgba(255, 255, 255, 0.03) inset,
     0 1px 0 rgba(255, 255, 255, 0.06) inset;
 }
-#weather-panel .panel-glow {
-  position: absolute;
-  inset: -18px;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(0, 212, 255, 0.16) 0%,
-    transparent 65%
-  );
-  filter: blur(16px);
-  opacity: 0.25;
-  pointer-events: none;
-}
 #weather-panel .panel-header {
   flex: 0 0 auto;
 }
@@ -417,4 +405,12 @@ html:not([lang='en']) .rail-card-setting {
 }
 .rail-card[data-open='true'] > .rail-card-header {
   padding-bottom: 0;
+}
+
+/* Use pixel widths where supported; retain native thin scrollbars elsewhere. */
+@supports selector(::-webkit-scrollbar) {
+#weather-panel-body { scrollbar-width: auto; scrollbar-color: auto; }
+#weather-panel-body::-webkit-scrollbar { width: 5px; }
+#weather-panel-body::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.46); border-radius: 999px; }
+#weather-panel-body::-webkit-scrollbar-track { background: transparent; }
 }
