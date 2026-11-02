@@ -245,6 +245,38 @@ export function initMobileShell({
   const poiRow = element('poi-row');
   const poiHome = poiRow?.parentElement;
   const poiNext = poiRow?.nextSibling;
+  const cities = element('location-pills');
+  const scrollWindow = documentRef.defaultView;
+  if (scrollWindow?.ResizeObserver && scrollWindow?.MutationObserver) {
+    for (const [row, host] of [[cities, cities?.parentElement], [poiRow, content]]) {
+      if (!row || !host) continue;
+      host.classList.add('mobile-scroll-edges');
+      const updateEdges = () => {
+        const visible = body.classList.contains(MOBILE_SHELL_CLASS) && row.parentElement === host && row.clientWidth > 0;
+        const max = row.scrollWidth - row.clientWidth;
+        host.toggleAttribute('data-scroll-left', visible && row.scrollLeft > 1);
+        host.toggleAttribute('data-scroll-right', visible && row.scrollLeft < max - 1);
+        if (!visible) return;
+        host.style.setProperty('--scroll-edge-top', (row.getBoundingClientRect().top - host.getBoundingClientRect().top) + 'px');
+        host.style.setProperty('--scroll-edge-height', row.offsetHeight + 'px');
+      };
+      listen(row, 'scroll', updateEdges, { passive: true });
+      const edgeResize = new scrollWindow.ResizeObserver(updateEdges);
+      edgeResize.observe(row);
+      edgeResize.observe(host);
+      const edgeContents = new scrollWindow.MutationObserver(updateEdges);
+      edgeContents.observe(row, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+      removers.push(() => {
+        edgeResize.disconnect();
+        edgeContents.disconnect();
+        host.classList.remove('mobile-scroll-edges');
+        host.removeAttribute('data-scroll-left');
+        host.removeAttribute('data-scroll-right');
+        host.style.removeProperty('--scroll-edge-top');
+        host.style.removeProperty('--scroll-edge-height');
+      });
+    }
+  }
   const placeSearch = (mobile) => {
     const parent = mobile ? searchBar : locationHome;
     if (locationPopover && parent && locationPopover.parentElement !== parent)
@@ -780,9 +812,8 @@ export function initMobileShell({
       event.preventDefault();
       body.setAttribute('data-mobile-scenes-dragging', '');
       const viewportHeight = documentRef.defaultView?.innerHeight || globalThis.innerHeight || 0;
-      const tabHeight = tabBar.getBoundingClientRect().height;
       const compact = viewportHeight * 0.45;
-      const expanded = viewportHeight - tabHeight - 16;
+      const expanded = parseFloat(globalThis.getComputedStyle(layersRoot).maxHeight);
       if (sceneTouch.lowered)
         layersRoot.style.setProperty('transform', `translateY(${Math.max(0, sceneTouch.height / 2 + distance)}px)`);
       else if (!sceneTouch.expanded && distance > 0)
@@ -884,7 +915,8 @@ export function initMobileShell({
       if (!layersTouch.expanded && distance > 0) {
         layersRoot.style.setProperty('transform', 'translateY(' + Math.min(distance, layersTouch.viewportHeight) + 'px)');
       } else {
-        const top = Math.max(0, Math.min(layersTouch.compactTop, layersTouch.startTop + distance));
+        const expandedTop = layersTouch.viewportHeight - layersTouch.tabHeight - parseFloat(globalThis.getComputedStyle(layersRoot).maxHeight);
+        const top = Math.max(expandedTop, Math.min(layersTouch.compactTop, layersTouch.startTop + distance));
         const bottom = layersTouch.tabHeight;
         layersRoot.style.setProperty('height', String(layersTouch.viewportHeight - top - bottom) + 'px');
         layersRoot.style.setProperty('bottom', String(bottom) + 'px');

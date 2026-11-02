@@ -39,17 +39,31 @@ export function initMobileSettings({ documentRef, onClose, onCollapse, onLanguag
   root.setAttribute('aria-labelledby', 'mobile-settings-title');
   const handle = make('div', 'mobile-details-handle', root);
   handle.setAttribute('aria-hidden', 'true');
-  const header = make('header', 'mobile-settings-header', root);
-  const back = make('button', 'mobile-sheet-control mobile-sheet-back', header);
-  back.type = 'button';
-  back.setAttribute('aria-label', t('Back'));
-  const title = make('h2', 'mobile-sheet-title', header, 'Settings');
-  title.id = 'mobile-settings-title';
-  const close = make('button', 'mobile-sheet-control mobile-sheet-close', header);
-  close.type = 'button';
-  close.setAttribute('aria-label', t('Close'));
-  make('span', 'mobile-sheet-close-icon', close).setAttribute('aria-hidden', 'true');
-  const content = make('div', 'mobile-settings-content', root);
+  const pages = make('div', 'mobile-settings-pages', root);
+  const makePage = (id) => {
+    const page = make('div', 'mobile-settings-page', pages);
+    const header = make('header', 'mobile-settings-header', page);
+    const back = make('button', 'mobile-sheet-control mobile-sheet-back', header);
+    back.type = 'button';
+    back.setAttribute('aria-label', t('Back'));
+    back.addEventListener('click', () => goBack());
+    const title = make('h2', 'mobile-sheet-title', header, 'Settings');
+    title.id = id;
+    const close = make('button', 'mobile-sheet-control mobile-sheet-close', header);
+    close.type = 'button';
+    close.setAttribute('aria-label', t('Close'));
+    make('span', 'mobile-sheet-close-icon', close).setAttribute('aria-hidden', 'true');
+    close.addEventListener('click', () => dismiss());
+    const content = make('div', 'mobile-settings-content', page);
+    return { page, header, back, title, close, content };
+  };
+  const indexPage = makePage('mobile-settings-title');
+  const detailPage = makePage('mobile-settings-detail-title');
+  detailPage.page.classList.add('mobile-settings-detail');
+  detailPage.page.hidden = true;
+  let { header, back, title, close, content } = indexPage;
+  let returning = null;
+  let categoryTrigger = null;
   let borrowed = [];
   let closing = null;
   let category = null;
@@ -73,6 +87,38 @@ export function initMobileSettings({ documentRef, onClose, onCollapse, onLanguag
   const byId = (id) => documentRef.getElementById(id);
   const group = (id) => borrow(byId(id)?.closest('.pp-toggle-group'));
   const note = (text) => make('p', 'mobile-settings-note', content, text);
+  let rowFeedback = null;
+  const clearRowFeedback = () => {
+    if (!rowFeedback) return;
+    rowFeedback.ripple.style.opacity = '0';
+    rowFeedback.animation.cancel();
+    rowFeedback = null;
+  };
+  const bindRowAction = (button, action) => {
+    const ripple = make('span', 'mobile-map-row-ripple', button);
+    ripple.setAttribute('aria-hidden', 'true');
+    button.addEventListener('click', async (event) => {
+      if (root.hidden || root.inert || closing !== null || returning !== null) return;
+      clearRowFeedback();
+      if (!event.detail || win.matchMedia('(prefers-reduced-motion: reduce)').matches) { action(); return; }
+      const rect = button.getBoundingClientRect();
+      const x = (event.clientX - rect.left) * button.offsetWidth / rect.width;
+      const y = (event.clientY - rect.top) * button.offsetHeight / rect.height;
+      const radius = Math.hypot(Math.max(x, button.offsetWidth - x), Math.max(y, button.offsetHeight - y));
+      const animation = ripple.animate([
+        { clipPath: 'circle(0px at ' + x + 'px ' + y + 'px)' },
+        { clipPath: 'circle(' + radius + 'px at ' + x + 'px ' + y + 'px)' },
+      ], { duration: 120, easing: 'cubic-bezier(0.2, 0, 0, 1)', fill: 'forwards' });
+      ripple.style.opacity = '1';
+      const feedback = rowFeedback = { ripple, animation };
+      try { await animation.finished; } catch { return; }
+      // Let the completed row fill paint before opening the next screen.
+      await new Promise(resolve => win.requestAnimationFrame(() => win.requestAnimationFrame(resolve)));
+      if (rowFeedback !== feedback) return;
+      clearRowFeedback();
+      if (!root.hidden && !root.inert && closing === null && returning === null) action();
+    });
+  };
   const row = (label, icon, action, value = '') => {
     const button = make('button', 'mobile-settings-row', content);
     button.type = 'button';
@@ -84,17 +130,27 @@ export function initMobileSettings({ documentRef, onClose, onCollapse, onLanguag
     make('span', 'mobile-settings-label', button, label);
     if (value) make('span', 'mobile-settings-value', button, value);
     make('span', 'mobile-settings-chevron', button, '›').setAttribute('aria-hidden', 'true');
-    button.addEventListener('click', action);
+    bindRowAction(button, action);
     return button;
   };
   function show(next = null, isTool = false) {
+    if (returning !== null || closing !== null) return;
+    clearRowFeedback();
+    if (next && !category && !isTool) categoryTrigger = documentRef.activeElement;
     restore();
     category = next;
     tool = isTool;
     root.dataset.category = next || 'index';
+    const detail = !!next && !tool;
+    ({ header, back, title, close, content } = detail ? detailPage : indexPage);
+    detailPage.page.hidden = !detail;
+    indexPage.page.inert = detail;
+    indexPage.page.setAttribute('aria-hidden', String(detail));
+    root.setAttribute('aria-labelledby', title.id);
+    back.hidden = !next;
+    if (!next && content.childElementCount && indexPage.title.textContent === t('Settings')) return;
     content.replaceChildren();
     content.scrollTop = 0;
-    back.hidden = !next;
     title.textContent = t(CATEGORIES.find(([key]) => key === next)?.[1] || (next === 'draw' ? 'Draw' : next === 'import' ? 'Import' : 'Settings'));
     if (!next) {
       for (const [key, label, icon] of CATEGORIES)
@@ -139,7 +195,7 @@ export function initMobileSettings({ documentRef, onClose, onCollapse, onLanguag
         const check = make('span', 'mobile-language-check', option);
         check.setAttribute('aria-hidden', 'true');
         check.innerHTML = '<svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>';
-        option.addEventListener('click', () => onLanguageSelect?.(locale));
+        bindRowAction(option, () => onLanguageSelect?.(locale));
       }
     } else if (next === 'draw') {
       group('draw-toggle');
@@ -151,22 +207,37 @@ export function initMobileSettings({ documentRef, onClose, onCollapse, onLanguag
   }
   const dismiss = () => {
     if (closing !== null || root.hidden) return;
+    clearRowFeedback();
     root.classList.add('is-closing');
-    const value = win.getComputedStyle(documentRef.documentElement).getPropertyValue('--mobile-sheet-animation-duration').trim() || '280ms';
+    const value = win.getComputedStyle(root).getPropertyValue('--mobile-sheet-animation-duration').trim() || '280ms';
     const duration = win.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : parseFloat(value) * (value.endsWith('ms') ? 1 : 1000);
     closing = win.setTimeout(onClose, duration);
   };
-  close.addEventListener('click', dismiss);
+  const goBack = () => {
+    if (closing !== null || returning !== null) return;
+    clearRowFeedback();
+    if (tool || !category) { dismiss(); return; }
+    detailPage.page.classList.add('is-leaving');
+    const value = win.getComputedStyle(root).getPropertyValue('--mobile-settings-page-duration').trim() || '180ms';
+    const duration = win.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : parseFloat(value) * (value.endsWith('ms') ? 1 : 1000);
+    returning = win.setTimeout(() => {
+      returning = null;
+      show();
+      detailPage.page.classList.remove('is-leaving');
+      detailPage.content.replaceChildren();
+      if (categoryTrigger?.isConnected) categoryTrigger.focus({ preventScroll: true });
+      else indexPage.close.focus({ preventScroll: true });
+    }, duration);
+  };
   backdrop.addEventListener('click', dismiss);
-  back.addEventListener('click', () => tool ? dismiss() : (show(), content.querySelector('button')?.focus()));
   // Keep provider setup's own delegated handlers, but use the sheet's Back.
-  content.addEventListener('click', (event) => {
+  root.addEventListener('click', (event) => {
     if (event.target.closest('[data-key-setup-close]')) {
       event.stopImmediatePropagation();
-      show();
+      goBack();
     }
   }, true);
-  content.addEventListener('change', (event) => {
+  root.addEventListener('change', (event) => {
     if (event.target.id !== 'gev-voice-provider') return;
     // The provider remount queries its original root for these live controls.
     restore();
@@ -181,21 +252,24 @@ export function initMobileSettings({ documentRef, onClose, onCollapse, onLanguag
     if (root.hidden || event.key !== 'Escape' || event.defaultPrevented) return;
     event.preventDefault();
     event.stopPropagation();
-    if (category && !tool) show();
-    else dismiss();
+    goBack();
   };
   root.addEventListener('keydown', escape);
   let pull = null;
-  header.style.touchAction = handle.style.touchAction = 'none';
+  let collapseOnClick = false;
+  indexPage.header.style.touchAction = detailPage.header.style.touchAction = handle.style.touchAction = 'none';
   const start = (event) => {
-    if (closing !== null || event.target.closest('button') || !event.isPrimary || event.button !== 0) return;
+    collapseOnClick = false;
+    if (closing !== null || returning !== null || !event.isPrimary || event.button !== 0 ||
+        event.target.closest('button, input, select, textarea, label, a, summary, [role], [contenteditable], [tabindex]')) return;
+    if (!event.target.closest('.mobile-settings-header, .mobile-details-handle')) return;
+    clearRowFeedback();
     root.style.animation = 'none';
     root.classList.add('is-dragging');
-    pull = { id: event.pointerId, x: event.clientX, y: event.clientY, delta: 0, moved: false };
     root.setPointerCapture(event.pointerId);
+    pull = { id: event.pointerId, x: event.clientX, y: event.clientY, delta: 0, moved: false };
   };
-  header.addEventListener('pointerdown', start);
-  handle.addEventListener('pointerdown', start);
+  root.addEventListener('pointerdown', start);
   root.addEventListener('pointermove', (event) => {
     if (event.pointerId !== pull?.id) return;
     pull.moved ||= Math.hypot(event.clientX - pull.x, event.clientY - pull.y) > 4;
@@ -212,26 +286,45 @@ export function initMobileSettings({ documentRef, onClose, onCollapse, onLanguag
     root.classList.remove('is-dragging');
     root.style.removeProperty('transform');
     if (shouldClose) dismiss();
-    else if (shouldCollapse) onCollapse?.();
+    else if (shouldCollapse) collapseOnClick = true;
   };
   root.addEventListener('pointerup', end);
   root.addEventListener('pointercancel', end);
+  root.addEventListener('click', (event) => {
+    if (!collapseOnClick) return;
+    collapseOnClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+    onCollapse?.();
+  });
   return {
     show,
     dismiss,
     sync(open) {
+      clearRowFeedback();
       win.clearTimeout(closing);
+      win.clearTimeout(returning);
+      returning = null;
+      detailPage.page.classList.remove('is-leaving');
       closing = null;
       pull = null;
+      collapseOnClick = false;
       root.classList.remove('is-closing', 'is-dragging');
       root.style.removeProperty('transform');
       root.style.removeProperty('animation');
       root.hidden = backdrop.hidden = !open;
       if (open) show();
-      else { restore(); content.replaceChildren(); }
+      else {
+        restore();
+        indexPage.content.replaceChildren();
+        detailPage.content.replaceChildren();
+        categoryTrigger = null;
+      }
     },
     destroy() {
+      clearRowFeedback();
       win.clearTimeout(closing);
+      win.clearTimeout(returning);
       restore();
       root.remove();
       backdrop.remove();

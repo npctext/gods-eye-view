@@ -103,7 +103,8 @@ export function initMobileSheetPeek({ documentRef, tabs, onChange, onClose }) {
   };
   const updateHeading = () => {
     if (!active) return;
-    const label = active.panel?.querySelector('.mobile-sheet-title')?.textContent || t(tabs.find((tab) => tab.sheet === active.sheet).label);
+    const heading = active.sheet === 'more' ? element(active.panel?.getAttribute('aria-labelledby')) : active.panel?.querySelector('.mobile-sheet-title');
+    const label = heading?.textContent || t(tabs.find((tab) => tab.sheet === active.sheet).label);
     const sourceCount = active.panel?.querySelector('.mobile-sheet-count');
     title.textContent = label;
     count.textContent = sourceCount?.textContent || '';
@@ -120,7 +121,6 @@ export function initMobileSheetPeek({ documentRef, tabs, onChange, onClose }) {
     const roots = rootsFor(sheet);
     if (!roots.length || roots.some((node) => node.style.transform)) return false;
     const panel = element(sheet === 'scenes' ? 'scene-panel' : sheet === 'layers' ? 'data-panel' : sheet === 'more' ? 'mobile-settings' : '');
-    restoreBar.style.backgroundColor = win.getComputedStyle(roots[0]).backgroundColor;
     restoreButton.setAttribute('aria-controls', roots.map((node) => node.id).join(' '));
     restoreBar.hidden = false;
     body.setAttribute('data-mobile-sheet-peek', '');

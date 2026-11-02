@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import test from 'node:test';
+import test, { beforeEach, afterEach } from 'node:test';
 import { StyleManager } from './applicationShell.js';
 import { ContextControls } from './contextControls.js';
 import {
@@ -10,6 +10,12 @@ import {
   nextSheet,
   sheetForPanelId,
 } from './mobileShell.js';
+
+const previousStyle = globalThis.getComputedStyle;
+beforeEach(() => {
+  globalThis.getComputedStyle = () => ({ maxHeight: '698px', display: 'block', getPropertyValue: () => '' });
+});
+afterEach(() => { globalThis.getComputedStyle = previousStyle; });
 
 function element(tag, document) {
   const node = new EventTarget();
@@ -514,7 +520,9 @@ test('Layers follows the finger between compact and expanded heights', async () 
   assert.equal(touch('touchmove', 350).defaultPrevented, true);
   assert.equal(document.body.getAttribute('data-mobile-layers-dragging'), '');
   const growingHeight = Number.parseFloat(root.style.values.get('height'));
-  assert.ok(growingHeight > 380 && growingHeight < 844);
+  assert.ok(growingHeight > 380 && growingHeight < 698);
+  touch('touchmove', -500);
+  assert.equal(Number.parseFloat(root.style.values.get('height')), 698);
   touch('touchend', 350);
   assert.equal(document.body.getAttribute('data-mobile-layers-expanded'), '');
   assert.equal(root.style.values.has('height'), false);

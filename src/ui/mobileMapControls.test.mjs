@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mapControlVisibility, sanitizeMapPins } from './mobileMapControls.js';
 
-test('stored pins reject unknown actions, duplicates and selections beyond three', () => {
-  assert.deepEqual(sanitizeMapPins(['tilt', 'tilt', 'clear', 'zoom', 'share', 'globe']), ['tilt', 'zoom', 'share']);
+test('stored pins keep every available action and reject unknown actions and duplicates', () => {
+  assert.deepEqual(sanitizeMapPins(['tilt', 'tilt', 'clear', 'zoom', 'share', 'globe', 'location']), ['tilt', 'zoom', 'share', 'globe', 'location']);
   assert.deepEqual(sanitizeMapPins({ zoom: true }), []);
   assert.deepEqual(sanitizeMapPins(null), []);
 });

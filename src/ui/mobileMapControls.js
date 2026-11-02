@@ -13,7 +13,7 @@ const clamp = (value) => Math.max(0, Math.min(1, value));
 
 export function sanitizeMapPins(value) {
   return Array.isArray(value)
-    ? [...new Set(value.filter((key) => OPTIONS.some(([id]) => id === key)))].slice(0, 3)
+    ? [...new Set(value.filter((key) => OPTIONS.some(([id]) => id === key)))]
     : [];
 }
 
@@ -40,12 +40,12 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     return node;
   };
   const image = (key, parent) => {
-    if (key === 'tilt') {
-      const icon = make('span', 'mobile-map-icon mobile-map-tilt-icon', parent);
+    if (key === 'tilt' || key === 'more') {
+      const icon = make('span', 'mobile-map-icon mobile-map-' + key + '-icon', parent);
       icon.setAttribute('aria-hidden', 'true');
       return icon;
     }
-    const img = make('img', 'mobile-map-icon', parent);
+    const img = make('img', 'mobile-map-icon mobile-map-' + key + '-icon', parent);
     img.src = `/icons/${key === 'search' || key === 'mic' || key === 'settings' ? 'mobile-header' : 'mobile-map'}/${key}.svg`;
     img.alt = '';
     return img;
@@ -128,7 +128,9 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
   for (const [value, label, symbol] of [[1, 'Zoom in', '+'], [-1, 'Zoom out', '−']]) {
     const node = make('button', 'mobile-map-zoom-button', zoomGroup);
     node.type = 'button';
-    node.textContent = symbol;
+    const icon = make('span', 'mobile-map-icon mobile-map-zoom-' + (value > 0 ? 'in' : 'out') + '-icon', node);
+    icon.textContent = symbol;
+    icon.setAttribute('aria-hidden', 'true');
     node.setAttribute('aria-label', t(label));
     node.addEventListener('click', () => { navigate(); zoom?.(value); });
   }
@@ -188,9 +190,8 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     if (key === 'zoom') zoomAction = node;
     const pin = make('button', 'mobile-map-pin', row);
     pin.type = 'button';
-    pin.setAttribute('aria-describedby', 'mobile-map-pin-hint');
     // Reuse public/pin.svg geometry; inline paths inherit the current theme.
-    pin.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5"/><path class="mobile-map-pin-head" d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.12-2.65A2 2 0 0 1 16 10.11V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v5.11a2 2 0 0 1-.44 1.24L5.44 14a2 2 0 0 0-.44 1.24Z"/></svg>';
+    pin.innerHTML = '<svg class="mobile-map-icon mobile-map-pin-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5"/><path class="mobile-map-pin-head" d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.12-2.65A2 2 0 0 1 16 10.11V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v5.11a2 2 0 0 1-.44 1.24L5.44 14a2 2 0 0 0-.44 1.24Z"/></svg>';
     pin.addEventListener('click', () => togglePin(key));
     pinButtons.set(key, pin);
   }
@@ -199,15 +200,13 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     const node = make('button', 'mobile-map-menu-row', toolGroup);
     node.type = 'button';
     node.dataset.mapToolAction = key;
-    const symbol = make('span', 'material-symbols-outlined', node);
+    const symbol = make('span', 'material-symbols-outlined mobile-map-icon mobile-map-' + key + '-icon', node);
     if (key === 'clean') symbol.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg>';
     else symbol.textContent = icon;
     symbol.setAttribute('aria-hidden', 'true');
     make('span', '', node).textContent = t(label);
     node.addEventListener('click', () => { closeMenu(); more.focus(); onMapTool?.(key); });
   }
-  const pinHint = make('p', 'mobile-map-pin-hint', menu);
-  pinHint.id = 'mobile-map-pin-hint';
   function clearRowFeedback() {
     if (!rowFeedback) return;
     rowFeedback.ripple.style.opacity = '0';
@@ -251,8 +250,7 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
   }, { passive: true });
   function togglePin(key) {
     if (pins.includes(key)) pins = pins.filter((id) => id !== key);
-    else if (pins.length < 3) pins = [...pins, key];
-    else return;
+    else pins = [...pins, key];
     try { win.localStorage.setItem(STORAGE_KEY, JSON.stringify(pins)); } catch { /* Keep the session preference. */ }
     renderPins();
   }
@@ -272,12 +270,9 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
       node.setAttribute('aria-pressed', String(pinned));
       node.setAttribute('aria-label', label);
       node.title = label;
-      node.disabled = !pinned && pins.length >= 3;
     }
     zoomAction.setAttribute('aria-pressed', String(pins.includes('zoom')));
-    zoomAction.disabled = !pins.includes('zoom') && pins.length >= 3;
-    pinCount.textContent = t('Pinned {count}/3', { count: pins.length });
-    pinHint.textContent = pins.length >= 3 ? t('Unpin a button to add another.') : t('Pin buttons to the map.');
+    pinCount.textContent = t('Pinned {count}', { count: pins.length });
     wake();
   }
   function closeMenu(keepFeedback = false) {
