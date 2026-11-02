@@ -393,23 +393,23 @@ test('opening the first tab uses the sheet transition', async () => {
   shell.destroy();
 });
 
-test('one sheet at a time, with every navigation sheet using a backdrop', () => {
+test('one sheet at a time, without a backdrop blocking the map', () => {
   const { document, shell, press, tab } = fixture();
   assert.equal(document.body.classList.contains('mobile-shell'), true);
   press('layers');
   assert.equal(shell.getSheet(), 'layers');
   assert.equal(document.body.getAttribute('data-mobile-sheet'), 'layers');
   assert.equal(tab('layers').getAttribute('aria-expanded'), 'true');
-  assert.equal(document.getElementById('mobile-sheet-backdrop').hidden, false);
+  assert.equal(document.getElementById('mobile-sheet-backdrop'), null);
   press('more');
   assert.equal(shell.getSheet(), 'more');
   assert.equal(tab('layers').getAttribute('aria-expanded'), 'false');
   assert.equal(tab('more').getAttribute('aria-expanded'), 'true');
-  assert.equal(document.getElementById('mobile-sheet-backdrop').hidden, false);
+  assert.equal(document.getElementById('mobile-sheet-backdrop'), null);
   press('more');
   assert.equal(shell.getSheet(), null);
   assert.equal(document.body.getAttribute('data-mobile-sheet'), null);
-  assert.equal(document.getElementById('mobile-sheet-backdrop').hidden, true);
+  assert.equal(document.getElementById('mobile-sheet-backdrop'), null);
 });
 
 test('Layers Active filter tracks enabled rows and updates when one turns off', () => {
@@ -750,7 +750,7 @@ test('layout settling after a sheet opens is part of opening', () => {
   assert.equal(collapsed('street-level-panel'), false, 'put back as it was');
 });
 
-test('the backdrop uses the standard closing transition for every sheet', async () => {
+test('the active navigation tab uses the standard closing transition for every sheet', async () => {
   for (const sheet of Object.keys(MOBILE_SHEET_PANELS)) {
     const { document, shell, press } = fixture();
     press(sheet);
@@ -761,7 +761,7 @@ test('the backdrop uses the standard closing transition for every sheet', async 
       update = callback;
       return { finished: new Promise((resolve) => { finish = resolve; }), skipTransition: () => finish() };
     };
-    document.getElementById('mobile-sheet-backdrop').dispatchEvent(new Event('click'));
+    press(sheet);
     assert.equal(shell.getSheet(), sheet);
     assert.equal(document.documentElement.getAttribute('data-tab-transition'), '');
     update();
@@ -773,13 +773,12 @@ test('the backdrop uses the standard closing transition for every sheet', async 
   }
 });
 
-test('the backdrop closes the open sheet', () => {
+test('a map click does not close a navigation sheet', () => {
   const { document, shell, press } = fixture();
   press('context');
-  document
-    .getElementById('mobile-sheet-backdrop')
-    .dispatchEvent(new Event('click'));
-  assert.equal(shell.getSheet(), null);
+  document.body.dispatchEvent(new Event('click'));
+  assert.equal(shell.getSheet(), 'context');
+  shell.destroy();
 });
 
 test('surfaces that own the screen close sheets; scene playback does not', () => {

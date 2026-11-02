@@ -15,6 +15,8 @@
 import { EXCLUSIVE_SURFACE_CLASSES } from '../exclusiveSurfaces.js';
 import { msg, t } from '../i18n/index.js';
 import { localizePlaceName } from './placeNames.js';
+import { initMobileMapControls } from './mobileMapControls.js';
+import { initMobileSheetPeek } from './mobileSheetPeek.js';
 
 export const MOBILE_SHELL_MEDIA_QUERY = '(max-width: 720px)';
 export const MOBILE_SHELL_CLASS = 'mobile-shell';
@@ -139,10 +141,6 @@ function buildChrome(documentRef) {
   sectionLabel.textContent = t('NAVIGATE TO');
   details.append(handle, header, divider, content);
 
-  const backdrop = documentRef.createElement('div');
-  backdrop.id = 'mobile-sheet-backdrop';
-  backdrop.hidden = true;
-
   const tabBar = documentRef.createElement('nav');
   tabBar.id = 'mobile-tab-bar';
   tabBar.setAttribute('aria-label', t('Panels'));
@@ -162,12 +160,12 @@ function buildChrome(documentRef) {
     button.append(icon, label);
     tabBar.append(button);
   }
-  documentRef.body.append(headerScrim, footerScrim, searchBar, backdrop, tabBar, details);
-  return { headerScrim, footerScrim, searchBar, searchClose, backdrop, tabBar, details, handle, title, close, content, sectionLabel };
+  documentRef.body.append(headerScrim, footerScrim, searchBar, tabBar, details);
+  return { headerScrim, footerScrim, searchBar, searchClose, tabBar, details, handle, title, close, content, sectionLabel };
 }
 
 /**
- * Wires the phone shell: the media gate, tab bar, backdrop, Escape, focus,
+ * Wires the phone shell: the media gate, tab bar, Escape, focus,
  * and closing for full-screen modes.
  * @param {object} input
  * @param {(panelId: string, collapsed: boolean, options?: object) => void} input.setPanelCollapsed
@@ -191,9 +189,11 @@ export function initMobileShell({
   requestFrame = globalThis.requestAnimationFrame?.bind(globalThis),
   onSheetsClosed = () => {},
   onTabOpened = () => {},
+  onMapZoom,
+  onMapLocation,
 } = {}) {
   const body = documentRef.body;
-  const { headerScrim, footerScrim, searchBar, searchClose, backdrop, tabBar, details, handle, title, close, content, sectionLabel } = buildChrome(documentRef);
+  const { headerScrim, footerScrim, searchBar, searchClose, tabBar, details, handle, title, close, content, sectionLabel } = buildChrome(documentRef);
   const viewport = documentRef.querySelector('meta[name="viewport"]');
   const viewportContent = viewport?.getAttribute('content') ?? null;
   const removers = [];
@@ -209,6 +209,10 @@ export function initMobileShell({
   const layersList = element('data-toggles');
   const layersActiveCount = element('mobile-layers-active-count');
   const layersCount = element('mobile-layers-count');
+  const layersFilter = element('mobile-layers-filter');
+  const clearLayers = element('clear-selected-layers');
+  const clearLayersHome = clearLayers?.parentElement;
+  const clearLayersNext = clearLayers?.nextSibling;
   const layersFilterButtons = [element('mobile-layers-all'), element('mobile-layers-active')].filter(Boolean);
   const statusStack = element('mobile-status-stack');
   const searchInput = element('location-search');
@@ -261,6 +265,12 @@ export function initMobileShell({
     if (mobile && poiRow.parentElement !== content) content.append(poiRow);
     else if (!mobile && poiRow.parentElement !== poiHome)
       poiHome.insertBefore(poiRow, poiNext);
+  };
+  const placeClearLayers = (mobile) => {
+    if (!clearLayers || !clearLayersHome || !layersFilter) return;
+    if (mobile && clearLayers.parentElement !== layersFilter) layersFilter.append(clearLayers);
+    else if (!mobile && clearLayers.parentElement !== clearLayersHome)
+      clearLayersHome.insertBefore(clearLayers, clearLayersNext);
   };
   const rails = ['left-panel-stack', 'right-context-rail']
     .map(element)
@@ -339,6 +349,7 @@ export function initMobileShell({
     updateSearchClear();
     if (!open) {
       body.removeAttribute('data-mobile-search-open');
+      searchBar.inert = true;
       searchInput?.blur?.();
       return;
     }
@@ -347,6 +358,7 @@ export function initMobileShell({
     closeDetails();
     setSheet(null);
     body.setAttribute('data-mobile-search-open', '');
+    searchBar.inert = false;
     if (documentRef.activeElement !== searchInput) searchInput?.focus?.();
     if (searchInput?.value) searchInput.select?.();
   };
@@ -436,7 +448,57 @@ export function initMobileShell({
     }
   };
 
+  let headingGlitchTimer = null;
+  let headingGlitches = [];
+  const cancelHeadingGlitch = () => {
+    clearInterval(headingGlitchTimer);
+    headingGlitchTimer = null;
+    for (const animation of headingGlitches) animation.cancel();
+    headingGlitches = [];
+  };
+  removers.push(cancelHeadingGlitch);
+
+  const animateHeadings = (sheet) => {
+    cancelHeadingGlitch();
+    if (!globalThis.Element?.prototype.animate) return;
+    headingGlitchTimer = setInterval(() => {
+      if (documentRef.hidden || currentSheetOf(body) !== sheet ||
+          !body.classList.contains(MOBILE_SHELL_CLASS) ||
+          matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+      for (const animation of headingGlitches) animation.cancel();
+      headingGlitches = [];
+      const headings = [];
+      const title = element('title-bar');
+      if (title && !title.inert && Number(globalThis.getComputedStyle(title).opacity) > 0)
+        headings.push(title.querySelector?.('.title-full-name'));
+      if (sheet && !body.hasAttribute('data-mobile-sheet-peek')) {
+        for (const panelId of MOBILE_SHEET_PANELS[sheet]) {
+          const panel = element(panelId);
+          headings.push(panel?.querySelector?.('.mobile-sheet-title') ||
+            panel?.querySelector?.('.panel-title, .pp-header-label'));
+        }
+      }
+      for (const heading of headings) {
+        if (!heading?.animate || !heading.getClientRects().length) continue;
+        const style = globalThis.getComputedStyle(heading);
+        if (style.visibility !== 'visible') continue;
+        const normal = style.textShadow;
+        headingGlitches.push(heading.animate([
+          { textShadow: normal, offset: 0 },
+          { textShadow: '-1px 0 rgba(98,237,255,.8), 1px 0 rgba(255,72,96,.55)', offset: 0.12 },
+          { textShadow: normal, offset: 0.28 },
+          { textShadow: '1.5px 0 rgba(98,237,255,.7), -1px 0 rgba(255,72,96,.5)', offset: 0.42 },
+          { textShadow: '-.5px 0 rgba(98,237,255,.5), .5px 0 rgba(255,72,96,.35)', offset: 0.58 },
+          { textShadow: normal, offset: 0.72 },
+          { textShadow: normal, offset: 1 },
+        ].map((frame) => ({ ...frame, easing: 'steps(1, end)' })), { duration: 220 }));
+      }
+    }, 6000);
+  };
+
   const present = (sheet) => {
+    cancelHeadingGlitch();
+    sheetPeek?.clear();
     if (sheet) body.setAttribute(MOBILE_SHEET_ATTR, sheet);
     else body.removeAttribute(MOBILE_SHEET_ATTR);
     if (sheet !== 'layers') {
@@ -460,7 +522,6 @@ export function initMobileShell({
       layersRoot?.style.removeProperty('height');
       layersRoot?.style.removeProperty('transform');
     }
-    backdrop.hidden = !sheet;
     for (const button of tabBar.querySelectorAll('[data-mobile-sheet]'))
       button.setAttribute(
         'aria-expanded',
@@ -522,6 +583,7 @@ export function initMobileShell({
       const focus = returnFocus;
       returnFocus = null;
       if (focus && focus !== body && body.contains?.(focus)) focus.focus?.();
+      animateHeadings(null);
       return;
     }
     for (const panelId of MOBILE_SHEET_PANELS[sheet])
@@ -538,6 +600,7 @@ export function initMobileShell({
     });
     measureSheet();
     sheetFocusTarget(sheet)?.focus?.();
+    animateHeadings(sheet);
     if (sheet === 'layers') {
       const toggles = element('data-toggles');
       if (toggles) toggles.scrollTop = 0;
@@ -587,6 +650,7 @@ export function initMobileShell({
     }
     placeSearch(matches);
     placePois(matches);
+    placeClearLayers(matches);
     if (matches) {
       body.classList.add(MOBILE_SHELL_CLASS);
       // Lets the page draw under the notch and system bars; the shell's CSS
@@ -610,7 +674,26 @@ export function initMobileShell({
         viewport.setAttribute('content', viewportContent);
     }
     tabBar.setAttribute('aria-hidden', String(!matches));
+    mapControls?.setMobile(matches);
+    if (matches) animateHeadings(currentSheetOf(body));
   };
+
+  const sheetPeek = initMobileSheetPeek({
+    documentRef, tabs: MOBILE_TABS, onChange: measureSheet,
+    onClose: () => {
+      const sheet = currentSheetOf(body);
+      if (sheet === 'layers' && layersList) layersList.scrollTop = 0;
+      returnFocus = tabFor(sheet) ?? returnFocus;
+      setSheet(null);
+    },
+  });
+  const mapControls = initMobileMapControls({
+    documentRef,
+    openSearch: () => setSearchOpen(true),
+    zoom: onMapZoom,
+    locate: onMapLocation,
+    onMapInteraction: () => sheetPeek?.collapse(),
+  });
 
   const media =
     typeof matchMedia === 'function'
@@ -657,7 +740,6 @@ export function initMobileShell({
     event.preventDefault();
     transitionSheet(nextSheet(currentSheetOf(body), button.dataset.mobileSheet), button);
   });
-  listen(backdrop, 'click', () => transitionSheet(null, tabFor(currentSheetOf(body))));
   if (scenePanel) {
     if (layersRoot) listen(layersRoot, 'transitionend', measureSheet);
     listen(scenePanel, 'mobile-scene-close', closeScenes);
@@ -1118,11 +1200,14 @@ export function initMobileShell({
         : borrowed.before.get(panelId);
     },
     destroy() {
+      mapControls?.destroy();
+      sheetPeek?.destroy();
       setSheet(null);
       setSearchOpen(false);
       closeDetails();
       placePois(false);
       placeSearch(false);
+      placeClearLayers(false);
       for (const remove of removers.splice(0)) remove();
       body.classList.remove(MOBILE_SHELL_CLASS);
       body.removeAttribute('data-mobile-search-typing');
@@ -1137,7 +1222,6 @@ export function initMobileShell({
       body.style.removeProperty('--mobile-status-offset');
       if (viewport && viewportContent !== null)
         viewport.setAttribute('content', viewportContent);
-      backdrop.remove();
       tabBar.remove();
       headerScrim.remove();
       footerScrim.remove();

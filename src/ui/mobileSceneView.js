@@ -1,4 +1,5 @@
 import { t } from '../i18n/index.js';
+import { createSceneTapFeedback } from './mobileSceneFeedback.js';
 
 export function mountMobileSceneView(controls) {
   const panel = controls.elements.panel;
@@ -7,6 +8,7 @@ export function mountMobileSceneView(controls) {
   const root = document.createElement('div');
   root.className = 'mobile-scene-view';
   inner.prepend(root);
+  const tapFeedback = createSceneTapFeedback(root, panel);
   let view = 'catalog';
   let menuReturnView = 'detail';
   let tappedShot = null;
@@ -17,12 +19,12 @@ export function mountMobileSceneView(controls) {
   let destroyed = false;
   let renderedKey = null;
   const scrollPositions = new Map();
-  const button = (label, action, className = '') => {
+  const button = (label, action, className = '', immediate = false) => {
     const element = document.createElement('button');
     element.type = 'button';
     element.className = `mobile-scene-button ${className}`;
     element.textContent = label;
-    element.addEventListener('click', action);
+    element.addEventListener('click', (event) => tapFeedback.run(event, action, immediate));
     return element;
   };
   const text = (tag, value, className = '') => {
@@ -55,8 +57,8 @@ export function mountMobileSceneView(controls) {
       transition = null;
     });
   };
-  const tile = (label, action, icon, className = '') => {
-    const element = button('', action, `mobile-scene-tile ${className}`);
+  const tile = (label, action, icon, className = '', immediate = false) => {
+    const element = button('', action, `mobile-scene-tile ${className}`, immediate);
     const symbol = document.createElement('span');
     symbol.className = 'mobile-scene-tile-icon';
     symbol.style.setProperty('--tile-icon', `url('${icon.startsWith('/') ? icon : `/scene-action-${icon}.svg`}')`);
@@ -73,6 +75,7 @@ export function mountMobileSceneView(controls) {
     if (runtime) runtime.textContent = state.runtime || state.scenes.find((item) => item.id === state.selectedSceneId)?.title || '';
   };
   const render = () => {
+    tapFeedback.reset();
     if (renderedKey) scrollPositions.set(renderedKey, {
       content: root.querySelector('.mobile-scene-content')?.scrollTop || 0,
       editor: inner.scrollTop,
@@ -173,7 +176,7 @@ export function mountMobileSceneView(controls) {
       content.append(list);
       const actions = document.createElement('div');
       actions.className = 'mobile-scene-actions';
-      actions.append(button(`＋ ${t('New')}`, () => controls.createScene()), button(t('Import'), () => controls.elements.file?.click()));
+      actions.append(button(`＋ ${t('New')}`, () => controls.createScene()), button(t('Import'), () => controls.elements.file?.click(), '', true));
       content.append(actions);
     } else if (view === 'detail') {
       const meta = document.createElement('div');
@@ -225,8 +228,8 @@ export function mountMobileSceneView(controls) {
       actions.className = 'mobile-scene-tile-grid';
       actions.append(tile(t('Edit details'), () => show('edit'), 'edit'));
       actions.append(tile(t('Share scene'), () => controls.actions.share?.(), 'share'));
-      actions.append(tile(t('Export presets'), () => controls.run('export'), 'export'));
-      const log = tile(t('Run log'), () => controls.run('download'), 'log');
+      actions.append(tile(t('Export presets'), () => controls.run('export'), 'export', '', true));
+      const log = tile(t('Run log'), () => controls.run('download'), 'log', '', true);
       log.disabled = !state.hasRun;
       actions.append(log);
       const advanced = tile(t('Advanced'), () => controls.run('editDetails'), 'settings');
@@ -333,6 +336,7 @@ export function mountMobileSceneView(controls) {
   render();
   return { render, updatePlayback, destroy: () => {
     destroyed = true;
+    tapFeedback.destroy();
     panel.removeEventListener('mobile-scenes-closed', resetSelection);
     transition?.skipTransition();
     document.documentElement.removeAttribute('data-scene-transition');

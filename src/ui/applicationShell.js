@@ -893,10 +893,42 @@ export class StyleManager extends ShellFacade {
       setPanelCollapsed: (panelId, collapsed, options) =>
         this._panelChrome.setPanelCollapsed(panelId, collapsed, options),
       onSheetsClosed: () => this._syncShareState(),
+      onMapZoom: (direction) => this._cameraOrientationControls?.zoom(direction),
+      onMapLocation: () => this._locateMobileMap(),
       onTabOpened: (sheet) => {
         void this._onMobileTabOpened(sheet);
       },
     });
+  }
+
+  /** Resolve device location without allowing a late result to steal the camera. */
+  async _locateMobileMap() {
+    if (!globalThis.isSecureContext || !globalThis.navigator?.geolocation) {
+      this._showToast(t('Location requires HTTPS and browser location access.'));
+      return;
+    }
+    const generation = this._navigation._beginDeferredNavigation('location');
+    if (generation === false) return;
+    try {
+      const position = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false, timeout: 10000, maximumAge: 60000,
+        }),
+      );
+      if (!this._navigation._reassertNavigationHandoff(generation)) return;
+      this.viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(
+          position.coords.longitude, position.coords.latitude,
+          Math.max(1500, Math.min(50000, position.coords.accuracy * 4)),
+        ),
+        orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
+        duration: 1.2,
+      });
+    } catch (error) {
+      if (!this._disposed) this._showToast(t(error?.code === 1
+        ? 'Location access denied. Allow location in your browser settings.'
+        : 'Unable to find your location. Please try again.'));
+    }
   }
 
   /** Reveal a tracked aircraft through Contacts when its phone tab is opened. */

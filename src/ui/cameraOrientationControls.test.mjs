@@ -656,6 +656,58 @@ test('orientation navigation preserves follow and selection; new navigation canc
   assert.deepEqual(calls, ['toast']);
 });
 
+test('zoom moves a real camera gradually in both directions without changing its orientation', () => {
+  for (const amount of [300, -300]) {
+    const { viewer } = createRealViewer(AUSTIN_GROUND);
+    orbit(viewer, AUSTIN_GROUND, 35, OBLIQUE_PITCH, 4000);
+    viewer.scene.preUpdate = new Cesium.Event();
+    let time = 0;
+    const animator = createCameraOrientationAnimator(viewer, { now: () => time });
+    const start = Cesium.Cartesian3.clone(viewer.camera.positionWC);
+    const direction = Cesium.Cartesian3.clone(viewer.camera.directionWC);
+    assert.equal(animator.zoom(amount, 1000), true);
+    assert.ok(Cesium.Cartesian3.equals(start, viewer.camera.positionWC));
+    let previous = 0;
+    for (const step of [0, 100, 300, 600, 1000]) {
+      time = step;
+      viewer.scene.preUpdate.raiseEvent();
+      const displacement = Cesium.Cartesian3.subtract(viewer.camera.positionWC, start, new Cesium.Cartesian3());
+      const distance = Cesium.Cartesian3.dot(displacement, direction);
+      assert.ok(Math.abs(distance) >= previous - 1e-6);
+      if (step > 0 && step < 1000) assert.ok(Math.abs(distance) > 0 && Math.abs(distance) < Math.abs(amount));
+      if (step === 1000) assert.ok(Math.abs(distance - amount) < 1e-6);
+      assert.ok(Cesium.Cartesian3.equalsEpsilon(direction, viewer.camera.directionWC, 1e-8));
+      previous = Math.abs(distance);
+    }
+    assert.equal(viewer.scene.preUpdate.numberOfListeners, 0);
+  }
+});
+
+test('zoom retargets from the current position and cancels when follow ownership changes', () => {
+  const { viewer } = createRealViewer(AUSTIN_GROUND);
+  orbit(viewer, AUSTIN_GROUND, 0, STRAIGHT_DOWN_PITCH, 4000);
+  viewer.scene.preUpdate = new Cesium.Event();
+  let time = 0;
+  const animator = createCameraOrientationAnimator(viewer, { now: () => time });
+  animator.zoom(300);
+  time = 100;
+  viewer.scene.preUpdate.raiseEvent();
+  const current = Cesium.Cartesian3.clone(viewer.camera.positionWC);
+  animator.zoom(-300);
+  assert.ok(Cesium.Cartesian3.equals(current, viewer.camera.positionWC));
+  assert.equal(viewer.scene.preUpdate.numberOfListeners, 1);
+  viewer.trackedEntity = {};
+  time = 500;
+  viewer.scene.preUpdate.raiseEvent();
+  assert.ok(Cesium.Cartesian3.equals(current, viewer.camera.positionWC));
+  assert.equal(viewer.scene.preUpdate.numberOfListeners, 0);
+  animator.zoom(300);
+  animator.cancel();
+  time = 1000;
+  viewer.scene.preUpdate.raiseEvent();
+  assert.ok(Cesium.Cartesian3.equals(current, viewer.camera.positionWC));
+});
+
 test('rapid tilt presses reverse direction and north-up keeps the requested tilt', (t) => {
   let time = 0;
   t.mock.method(performance, 'now', () => time);

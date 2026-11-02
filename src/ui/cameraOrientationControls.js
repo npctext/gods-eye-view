@@ -230,8 +230,35 @@ export function createCameraOrientationAnimator(
     viewer.scene.requestRender?.();
     return true;
   }
+  function zoom(amount, zoomDuration = 280) {
+    cancel();
+    if (!Number.isFinite(amount) || amount === 0) return false;
+    if (!viewer.scene?.preUpdate?.addEventListener || zoomDuration <= 0) {
+      viewer.camera.zoomIn(amount);
+      viewer.scene?.requestRender?.();
+      return true;
+    }
+    const entity = viewer.trackedEntity;
+    const start = now();
+    let moved = 0;
+    remove = viewer.scene.preUpdate.addEventListener(() => {
+      if (viewer.isDestroyed?.() || viewer.trackedEntity !== entity) {
+        cancel();
+        return;
+      }
+      const progress = Cesium.Math.clamp((now() - start) / zoomDuration, 0, 1);
+      const distance = amount * Cesium.EasingFunction.CUBIC_OUT(progress);
+      viewer.camera.zoomIn(distance - moved);
+      moved = distance;
+      viewer.scene.requestRender?.();
+      if (progress === 1) cancel();
+    });
+    viewer.scene.requestRender?.();
+    return true;
+  }
   return {
     animate,
+    zoom,
     cancel,
     get destination() {
       return pending;
@@ -371,6 +398,16 @@ export function bindCameraOrientationControls({
   return {
     sync,
     refreshTilt,
+    zoom(direction) {
+      return runNavigation('camera', () => {
+        const height = Math.max(0, viewer.camera.positionCartographic.height);
+        const distance = direction > 0
+          ? Math.min(Math.max(10, height * 0.3), Math.max(0, height - 20))
+          : -Math.max(10, height * 0.3);
+        const reduced = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        return animator.zoom(distance, reduced ? 0 : 280);
+      });
+    },
     cancel: animator.cancel,
     destroy() {
       if (destroyed) return;
