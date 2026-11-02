@@ -3002,5 +3002,15 @@
   "Your choice applies now, but could not be saved.": "Tu elección se aplica ahora, pero no se pudo guardar.",
   "Voice replies appear here.": "Las respuestas de voz aparecen aquí.",
   "Preview is off.": "La vista previa está desactivada.",
-  "Automatic stop is unavailable for this voice connection.": "La parada automática no está disponible para esta conexión de voz."
+  "Automatic stop is unavailable for this voice connection.": "La parada automática no está disponible para esta conexión de voz.",
+  "Appearance": "Apariencia",
+  "Map & objects": "Mapa y objetos",
+  "Sound & voice": "Sonido y voz",
+  "API keys & services": "Claves API y servicios",
+  "Language": "Idioma",
+  "Voice settings are unavailable in this session.": "La configuración de voz no está disponible en esta sesión.",
+  "Microphone access is managed by your browser.": "El acceso al micrófono se gestiona en el navegador.",
+  "API keys are managed on the server. Open the app on the local server to configure services.": "Las claves API se gestionan en el servidor. Abre la aplicación en el servidor local para configurar los servicios.",
+  "Changing language reloads the page.": "Cambiar el idioma recarga la página.",
+  "Choose a shape, then tap the map to draw.": "Elige una forma y toca el mapa para dibujar."
 }

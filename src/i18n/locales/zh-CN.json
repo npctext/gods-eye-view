@@ -2864,5 +2864,15 @@
   "{count} placemarks": {
     "other": "{count} 个地标"
   },
-  "S2 Underground publishes these KMZ products to GitHub. New uploads are detected within seconds and replace the previous edition automatically. Click a marker for its report.": "S2 Underground 在 GitHub 发布这些 KMZ 产品。新上传的内容会在数秒内被检测到，并自动替换旧版本。点击标记查看报告。"
+  "S2 Underground publishes these KMZ products to GitHub. New uploads are detected within seconds and replace the previous edition automatically. Click a marker for its report.": "S2 Underground 在 GitHub 发布这些 KMZ 产品。新上传的内容会在数秒内被检测到，并自动替换旧版本。点击标记查看报告。",
+  "Appearance": "外观",
+  "Map & objects": "地图与对象",
+  "Sound & voice": "声音与语音",
+  "API keys & services": "API 密钥与服务",
+  "Language": "语言",
+  "Voice settings are unavailable in this session.": "此会话无法使用语音设置。",
+  "Microphone access is managed by your browser.": "麦克风权限由浏览器管理。",
+  "API keys are managed on the server. Open the app on the local server to configure services.": "API 密钥由服务器管理。请在本地服务器上打开应用以配置服务。",
+  "Changing language reloads the page.": "更改语言会重新加载页面。",
+  "Choose a shape, then tap the map to draw.": "选择形状，然后点按地图进行绘制。"
 }

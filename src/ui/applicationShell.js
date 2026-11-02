@@ -895,6 +895,7 @@ export class StyleManager extends ShellFacade {
       onSheetsClosed: () => this._syncShareState(),
       onMapZoom: (direction) => this._cameraOrientationControls?.zoom(direction),
       onMapLocation: () => this._locateMobileMap(),
+      onLanguageSelect: (locale) => this._chooseLocale(locale),
       onTabOpened: (sheet) => {
         void this._onMobileTabOpened(sheet);
       },

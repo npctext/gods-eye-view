@@ -1016,7 +1016,7 @@ test('Scenes editor outer scroller and lowered content keep native scroll priori
 });
 
 test('downward sheet pull closes through borrowed-panel lifecycle and returns tab focus', () => {
-  for (const sheet of Object.keys(MOBILE_SHEET_PANELS).filter((name) => !['layers', 'scenes'].includes(name))) {
+  for (const sheet of Object.keys(MOBILE_SHEET_PANELS).filter((name) => !['layers', 'scenes', 'more'].includes(name))) {
     const phone = fixture();
     const { document, shell, press, tab } = phone;
     press(sheet);

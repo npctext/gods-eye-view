@@ -46,7 +46,7 @@ export function initMobileSheetPeek({ documentRef, tabs, onChange, onClose }) {
   const pointers = new Map();
   const rootsFor = (sheet) => (sheet === 'layers' || sheet === 'scenes'
     ? ['left-panel-stack']
-    : sheet === 'more' ? ['command-dock', 'right-context-rail'] : ['right-context-rail'])
+    : sheet === 'more' ? ['mobile-settings'] : ['right-context-rail'])
     .map(element).filter((node) => node && win.getComputedStyle(node).display !== 'none');
   const setOffset = (value) => body.style.setProperty('--mobile-sheet-peek-offset', `${value}px`);
   const measure = () => {
@@ -119,7 +119,7 @@ export function initMobileSheetPeek({ documentRef, tabs, onChange, onClose }) {
         body.matches('[data-mobile-layers-dragging], [data-mobile-scenes-dragging]')) return false;
     const roots = rootsFor(sheet);
     if (!roots.length || roots.some((node) => node.style.transform)) return false;
-    const panel = element(sheet === 'scenes' ? 'scene-panel' : sheet === 'layers' ? 'data-panel' : '');
+    const panel = element(sheet === 'scenes' ? 'scene-panel' : sheet === 'layers' ? 'data-panel' : sheet === 'more' ? 'mobile-settings' : '');
     restoreBar.style.backgroundColor = win.getComputedStyle(roots[0]).backgroundColor;
     restoreButton.setAttribute('aria-controls', roots.map((node) => node.id).join(' '));
     restoreBar.hidden = false;

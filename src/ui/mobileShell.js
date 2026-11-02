@@ -15,6 +15,7 @@
 import { EXCLUSIVE_SURFACE_CLASSES } from '../exclusiveSurfaces.js';
 import { msg, t } from '../i18n/index.js';
 import { localizePlaceName } from './placeNames.js';
+import { initMobileSettings } from './mobileSettings.js';
 import { initMobileMapControls } from './mobileMapControls.js';
 import { initMobileSheetPeek } from './mobileSheetPeek.js';
 
@@ -191,6 +192,7 @@ export function initMobileShell({
   onTabOpened = () => {},
   onMapZoom,
   onMapLocation,
+  onLanguageSelect,
 } = {}) {
   const body = documentRef.body;
   const { headerScrim, footerScrim, searchBar, searchClose, tabBar, details, handle, title, close, content, sectionLabel } = buildChrome(documentRef);
@@ -388,7 +390,7 @@ export function initMobileShell({
     const viewportHeight = globalThis.innerHeight || 0;
     const cover = Math.max(
       0,
-      ...[...rails, currentSheetOf(body) ? dock : null]
+      ...[...rails, element('mobile-settings'), currentSheetOf(body) ? dock : null]
         .filter(shown)
         .map((node) => viewportHeight - node.getBoundingClientRect().top),
     );
@@ -448,59 +450,11 @@ export function initMobileShell({
     }
   };
 
-  let headingGlitchTimer = null;
-  let headingGlitches = [];
-  const cancelHeadingGlitch = () => {
-    clearInterval(headingGlitchTimer);
-    headingGlitchTimer = null;
-    for (const animation of headingGlitches) animation.cancel();
-    headingGlitches = [];
-  };
-  removers.push(cancelHeadingGlitch);
-
-  const animateHeadings = (sheet) => {
-    cancelHeadingGlitch();
-    if (!globalThis.Element?.prototype.animate) return;
-    headingGlitchTimer = setInterval(() => {
-      if (documentRef.hidden || currentSheetOf(body) !== sheet ||
-          !body.classList.contains(MOBILE_SHELL_CLASS) ||
-          matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-      for (const animation of headingGlitches) animation.cancel();
-      headingGlitches = [];
-      const headings = [];
-      const title = element('title-bar');
-      if (title && !title.inert && Number(globalThis.getComputedStyle(title).opacity) > 0)
-        headings.push(title.querySelector?.('.title-full-name'));
-      if (sheet && !body.hasAttribute('data-mobile-sheet-peek')) {
-        for (const panelId of MOBILE_SHEET_PANELS[sheet]) {
-          const panel = element(panelId);
-          headings.push(panel?.querySelector?.('.mobile-sheet-title') ||
-            panel?.querySelector?.('.panel-title, .pp-header-label'));
-        }
-      }
-      for (const heading of headings) {
-        if (!heading?.animate || !heading.getClientRects().length) continue;
-        const style = globalThis.getComputedStyle(heading);
-        if (style.visibility !== 'visible') continue;
-        const normal = style.textShadow;
-        headingGlitches.push(heading.animate([
-          { textShadow: normal, offset: 0 },
-          { textShadow: '-1px 0 rgba(98,237,255,.8), 1px 0 rgba(255,72,96,.55)', offset: 0.12 },
-          { textShadow: normal, offset: 0.28 },
-          { textShadow: '1.5px 0 rgba(98,237,255,.7), -1px 0 rgba(255,72,96,.5)', offset: 0.42 },
-          { textShadow: '-.5px 0 rgba(98,237,255,.5), .5px 0 rgba(255,72,96,.35)', offset: 0.58 },
-          { textShadow: normal, offset: 0.72 },
-          { textShadow: normal, offset: 1 },
-        ].map((frame) => ({ ...frame, easing: 'steps(1, end)' })), { duration: 220 }));
-      }
-    }, 6000);
-  };
-
   const present = (sheet) => {
-    cancelHeadingGlitch();
     sheetPeek?.clear();
     if (sheet) body.setAttribute(MOBILE_SHEET_ATTR, sheet);
     else body.removeAttribute(MOBILE_SHEET_ATTR);
+    settingsPanel?.sync(sheet === 'more');
     if (sheet !== 'layers') {
       clearTimeout(layersCloseTimer);
       layersCloseTimer = null;
@@ -532,7 +486,7 @@ export function initMobileShell({
 
   /** The first visible control of the sheet's first panel, for focus on open. */
   const sheetFocusTarget = (sheet) => {
-    const panel = element(MOBILE_SHEET_PANELS[sheet][0]);
+    const panel = element(sheet === 'more' ? 'mobile-settings' : MOBILE_SHEET_PANELS[sheet][0]);
     const controls =
       panel?.querySelectorAll?.(
         'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -583,7 +537,6 @@ export function initMobileShell({
       const focus = returnFocus;
       returnFocus = null;
       if (focus && focus !== body && body.contains?.(focus)) focus.focus?.();
-      animateHeadings(null);
       return;
     }
     for (const panelId of MOBILE_SHEET_PANELS[sheet])
@@ -600,7 +553,6 @@ export function initMobileShell({
     });
     measureSheet();
     sheetFocusTarget(sheet)?.focus?.();
-    animateHeadings(sheet);
     if (sheet === 'layers') {
       const toggles = element('data-toggles');
       if (toggles) toggles.scrollTop = 0;
@@ -660,7 +612,7 @@ export function initMobileShell({
           'content',
           `${viewportContent || ''}, viewport-fit=cover`,
         );
-      for (const node of [...rails, dock, details, statusStack].filter(Boolean))
+      for (const node of [...rails, dock, details, statusStack, element('mobile-settings')].filter(Boolean))
         resize?.observe(node);
       measureSheet();
       measureStatus();
@@ -675,9 +627,12 @@ export function initMobileShell({
     }
     tabBar.setAttribute('aria-hidden', String(!matches));
     mapControls?.setMobile(matches);
-    if (matches) animateHeadings(currentSheetOf(body));
   };
 
+  const settingsPanel = initMobileSettings({
+    documentRef, onClose: () => setSheet(null), onCollapse: () => sheetPeek?.collapse(), onLanguageSelect,
+  });
+  resize?.observe(element('mobile-settings') || details);
   const sheetPeek = initMobileSheetPeek({
     documentRef, tabs: MOBILE_TABS, onChange: measureSheet,
     onClose: () => {
@@ -690,6 +645,18 @@ export function initMobileShell({
   const mapControls = initMobileMapControls({
     documentRef,
     openSearch: () => setSearchOpen(true),
+    openSettings: () => {
+      if (currentSheetOf(body) === 'more') { settingsPanel?.dismiss(); return; }
+      setSheet('more'); onTabOpened('more');
+    },
+    onMapTool: (tool) => {
+      if (tool === 'clean') { setSheet(null); element('clean-view-toggle')?.click(); return; }
+      setSheet('more');
+      onTabOpened('more');
+      settingsPanel?.show(tool, true);
+      if (tool === 'draw' && element('draw-toggle')?.getAttribute('aria-pressed') !== 'true') element('draw-toggle')?.click();
+      if (tool === 'import') element('geo-import-button')?.click();
+    },
     zoom: onMapZoom,
     locate: onMapLocation,
     onMapInteraction: () => sheetPeek?.collapse(),
@@ -1048,6 +1015,7 @@ export function initMobileShell({
         !sheet ||
         sheet === 'layers' ||
         sheet === 'scenes' ||
+        sheet === 'more' ||
         !body.classList.contains(MOBILE_SHELL_CLASS) ||
         event.defaultPrevented ||
         event.touches.length !== 1 ||
@@ -1150,6 +1118,7 @@ export function initMobileShell({
     const sheet = currentSheetOf(body);
     if (!sheet || documentRef.querySelector('dialog[open]')) return;
     event.preventDefault();
+    if (sheet === 'more') { settingsPanel?.dismiss(); return; }
     returnFocus = tabFor(sheet) ?? returnFocus;
     setSheet(null);
   });
@@ -1203,6 +1172,7 @@ export function initMobileShell({
       mapControls?.destroy();
       sheetPeek?.destroy();
       setSheet(null);
+      settingsPanel?.destroy();
       setSearchOpen(false);
       closeDetails();
       placePois(false);

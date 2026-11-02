@@ -3071,5 +3071,15 @@
   "Your choice applies now, but could not be saved.": "Ваш выбор применён, но сохранить его не удалось.",
   "Voice replies appear here.": "Здесь появляются голосовые ответы.",
   "Preview is off.": "Предпросмотр отключён.",
-  "Automatic stop is unavailable for this voice connection.": "Автоматическая остановка недоступна для этого голосового подключения."
+  "Automatic stop is unavailable for this voice connection.": "Автоматическая остановка недоступна для этого голосового подключения.",
+  "Appearance": "Внешний вид",
+  "Map & objects": "Карта и объекты",
+  "Sound & voice": "Звук и голос",
+  "API keys & services": "API-ключи и сервисы",
+  "Language": "Язык",
+  "Voice settings are unavailable in this session.": "Настройки голоса недоступны в этой сессии.",
+  "Microphone access is managed by your browser.": "Доступ к микрофону настраивается в браузере.",
+  "API keys are managed on the server. Open the app on the local server to configure services.": "API-ключи хранятся на сервере. Для настройки сервисов откройте приложение на локальном сервере.",
+  "Changing language reloads the page.": "При смене языка страница перезагрузится.",
+  "Choose a shape, then tap the map to draw.": "Выберите фигуру и нажимайте на карту, чтобы рисовать."
 }

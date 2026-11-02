@@ -23,7 +23,7 @@ export function mapControlVisibility(top, height, boundary) {
   return clamp((top + height - boundary) / height);
 }
 
-export function initMobileMapControls({ documentRef, openSearch, zoom, locate, onMapInteraction }) {
+export function initMobileMapControls({ documentRef, openSearch, openSettings, onMapTool, zoom, locate, onMapInteraction }) {
   const win = documentRef.defaultView;
   if (!win?.requestAnimationFrame) return null;
   const body = documentRef.body;
@@ -67,6 +67,8 @@ export function initMobileMapControls({ documentRef, openSearch, zoom, locate, o
   let locating = false;
   let pressedControl = null;
   let heldLayout = null;
+  let northVisible = false;
+  let northHideTimer = null;
   try { pins = sanitizeMapPins(JSON.parse(win.localStorage.getItem(STORAGE_KEY))); } catch { /* Browser storage is optional. */ }
 
   const header = make('div', '', body);
@@ -76,10 +78,9 @@ export function initMobileMapControls({ documentRef, openSearch, zoom, locate, o
   search.setAttribute('aria-controls', 'mobile-search-bar');
   const mic = button('mic', 'Voice control', headerGroup);
   mic.setAttribute('aria-disabled', 'true');
-  const settings = button('settings', 'Settings', headerGroup);
+  const settings = button('settings', 'Settings', headerGroup, () => { closeMenu(); openSettings?.(); });
   settings.classList.add('mobile-header-settings');
-  settings.setAttribute('aria-disabled', 'true');
-  settings.tabIndex = -1;
+  settings.setAttribute('aria-controls', 'mobile-settings');
 
   const toolbar = make('nav', '', body);
   toolbar.id = 'mobile-map-controls';
@@ -115,9 +116,12 @@ export function initMobileMapControls({ documentRef, openSearch, zoom, locate, o
   };
   const north = button('north', 'Reset map to north up', slot('north', primaryRow), () => run('north'));
   north.classList.add('mobile-map-north');
+  north.setAttribute('data-north-hidden', '');
+  north.setAttribute('aria-hidden', 'true');
+  north.inert = true;
   proxies.set('north', [north]);
   for (const [key, label] of OPTIONS.filter(([key]) => key !== 'zoom')) {
-    proxies.set(key, [button(key, label, slot(key), () => run(key))]);
+    proxies.set(key, [button(key, label, slot(key, key === 'location' ? primaryRow : toolbar), () => run(key))]);
   }
   const zoomSlot = slot('zoom');
   const zoomGroup = make('div', 'mobile-map-zoom', zoomSlot);
@@ -190,6 +194,18 @@ export function initMobileMapControls({ documentRef, openSearch, zoom, locate, o
     pin.addEventListener('click', () => togglePin(key));
     pinButtons.set(key, pin);
   }
+  const toolGroup = make('div', 'mobile-map-menu-tools', menu);
+  for (const [key, label, icon] of [['draw', 'Draw', 'draw'], ['import', 'Import', 'upload_file'], ['clean', 'Clean UI', 'fullscreen']]) {
+    const node = make('button', 'mobile-map-menu-row', toolGroup);
+    node.type = 'button';
+    node.dataset.mapToolAction = key;
+    const symbol = make('span', 'material-symbols-outlined', node);
+    if (key === 'clean') symbol.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg>';
+    else symbol.textContent = icon;
+    symbol.setAttribute('aria-hidden', 'true');
+    make('span', '', node).textContent = t(label);
+    node.addEventListener('click', () => { closeMenu(); more.focus(); onMapTool?.(key); });
+  }
   const pinHint = make('p', 'mobile-map-pin-hint', menu);
   pinHint.id = 'mobile-map-pin-hint';
   function clearRowFeedback() {
@@ -241,10 +257,14 @@ export function initMobileMapControls({ documentRef, openSearch, zoom, locate, o
     renderPins();
   }
   function renderPins() {
+    let stackBase = null;
     for (const node of slots) {
       const key = node.dataset.control;
       node.hidden = OPTIONS.some(([id]) => id === key) && !pins.includes(key);
+      node.classList.remove('mobile-map-stack-base');
+      if (node.parentElement === toolbar && !node.hidden) stackBase = node;
     }
+    stackBase?.classList.add('mobile-map-stack-base');
     for (const [key, node] of pinButtons) {
       const pinned = pins.includes(key);
       const name = t(OPTIONS.find(([id]) => id === key)[1]);
@@ -268,7 +288,7 @@ export function initMobileMapControls({ documentRef, openSearch, zoom, locate, o
   }
 
   const title = element('title-bar');
-  const sheetNodes = ['left-panel-stack', 'right-context-rail', 'mobile-details', 'command-dock'].map(element).filter(Boolean);
+  const sheetNodes = ['left-panel-stack', 'right-context-rail', 'mobile-details', 'mobile-settings', 'command-dock'].map(element).filter(Boolean);
   const visual = (node, amount) => {
     const value = Math.round(amount * 1000) / 1000;
     const css = String(value);
@@ -277,9 +297,34 @@ export function initMobileMapControls({ documentRef, openSearch, zoom, locate, o
     node.inert = value === 0;
     node.setAttribute('aria-hidden', String(value === 0));
   };
+  const northAngle = () => {
+    const heading = parseFloat(sources.north?.style.getPropertyValue('--camera-heading')) || 0;
+    const wrapped = ((heading % 360) + 360) % 360;
+    return Math.min(wrapped, 360 - wrapped);
+  };
+  const setNorthVisible = (visible) => {
+    northVisible = visible;
+    north.toggleAttribute('data-north-hidden', !visible);
+    north.inert = !visible;
+    north.setAttribute('aria-hidden', String(!visible));
+  };
+  const syncNorthVisibility = () => {
+    const angle = northAngle();
+    if (angle > 1) {
+      win.clearTimeout(northHideTimer);
+      northHideTimer = null;
+      if (angle > 3 && !northVisible) setNorthVisible(true);
+    } else if (northVisible && northHideTimer === null) {
+      northHideTimer = win.setTimeout(() => {
+        northHideTimer = null;
+        if (!disposed && mobile && !documentRef.hidden && northAngle() <= 1) setNorthVisible(false);
+      }, 500);
+    }
+  };
   function draw() {
     const searchOpen = body.hasAttribute('data-mobile-search-open');
     search.setAttribute('aria-expanded', String(searchOpen));
+    settings.setAttribute('aria-expanded', String(body.getAttribute('data-mobile-sheet') === 'more'));
     if (searchOpen) closeMenu();
     for (const [key, nodes] of proxies) {
       const source = sources[key];
@@ -290,6 +335,7 @@ export function initMobileMapControls({ documentRef, openSearch, zoom, locate, o
       }
     }
     north.style.setProperty('--camera-heading', sources.north?.style.getPropertyValue('--camera-heading') || '0deg');
+    syncNorthVisibility();
     const headerRect = header.getBoundingClientRect();
     const tabTop = element('mobile-tab-bar').getBoundingClientRect().top;
     let panelTop = tabTop;
@@ -312,8 +358,10 @@ export function initMobileMapControls({ documentRef, openSearch, zoom, locate, o
     // Repeated map taps keep their target while the sheet retreats.
     if (!heldLayout) toolbar.style.top = `${toolbarTop}px`;
     const visibleTop = toolbar.getBoundingClientRect().top;
-    // Let the bottom row use up the extra zoom gap before moving the column.
-    const stackOffset = zoomSlot.hidden ? 0 : Math.min(72, Math.max(0, restingBottom - 16 - toolbar.offsetHeight - visibleTop));
+    // Let the bottom row use up the stack gap before moving the column.
+    const stackBase = slots.find((node) => node.classList.contains('mobile-map-stack-base'));
+    const stackGap = stackBase ? parseFloat(win.getComputedStyle(stackBase).marginBottom) : 0;
+    const stackOffset = Math.min(stackGap, Math.max(0, restingBottom - 16 - toolbar.offsetHeight - visibleTop));
     if (!heldLayout) toolbar.style.setProperty('--map-stack-offset', `${stackOffset}px`);
     for (const node of heldLayout ? [] : slots) {
       if (node.hidden) continue;
@@ -399,6 +447,8 @@ export function initMobileMapControls({ documentRef, openSearch, zoom, locate, o
       mobile = value;
       if (value) wake();
       else {
+        win.clearTimeout(northHideTimer);
+        northHideTimer = null;
         heldLayout = null;
         clearControlPress();
         closeMenu();
