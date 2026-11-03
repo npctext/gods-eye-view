@@ -628,3 +628,40 @@ test('actual default OpenAI adapter stop publishes one common idle', (t) => {
   assert.equal(session.state, 'idle');
   assert.equal(session.adapter.controller.status, 'idle');
 });
+
+
+test('mobile mute and interruption preserve the session and refuse inactive transports', async () => {
+  let emit, finishStart;
+  let stops = 0, interrupts = 0;
+  const track = { enabled: true };
+  const session = createVoiceSession({
+    runner: async () => ({}),
+    createAdapter(hooks) {
+      emit = hooks.emit;
+      return {
+        start: () => new Promise(resolve => { finishStart = () => { emit({ type: 'state', state: 'listening' }); resolve(); }; }),
+        stop() { stops++; }, sendText() {}, sendMapEvent() {},
+        setMicrophoneEnabled(enabled) { track.enabled = enabled; return true; },
+        interrupt() { interrupts++; return true; },
+      };
+    },
+  });
+  assert.equal(session.setMicrophoneEnabled(false), false);
+  const starting = session.start();
+  assert.equal(session.interrupt(), false);
+  assert.equal(session.setMicrophoneEnabled(false), false);
+  finishStart();
+  await starting;
+  assert.equal(session.setMicrophoneEnabled(false), true);
+  assert.equal(track.enabled, false);
+  assert.equal(session.isActive(), true);
+  assert.equal(session.interrupt(), true);
+  assert.equal(session.setMicrophoneEnabled(true), true);
+  assert.equal(track.enabled, true);
+  assert.equal(stops, 0);
+  assert.equal(interrupts, 1);
+  session.stop();
+  assert.equal(session.setMicrophoneEnabled(false), false);
+  session.destroy();
+  assert.equal(session.interrupt(), false);
+});

@@ -30,6 +30,10 @@ export function _renderCctvState(state) {
   const enabled = !!state?.enabled && !!this.actions.isEnabled();
   const activeId = state?.activeCameraId || '';
   const activeCamera = state?.activeCamera || null;
+  if (this._cctvPanel) {
+    this._cctvPanel.dataset.cameraState = this._cctvEnablePending ? 'loading' : !enabled ? 'off' : cameras.length ? 'ready' : state?.loading?.active ? 'loading' : 'empty';
+    this._cctvPanel.dataset.sourceStatus = activeCamera?.sourceStatus || 'unknown';
+  }
 
   // Auto-expand the panel when the active camera CHANGES to a new non-null
   // id while the layer is enabled. Covers click-on-globe, panel controls,
@@ -55,7 +59,10 @@ export function _renderCctvState(state) {
 
   if (this._cctvEnableBtn) {
     this._cctvEnableBtn.classList.toggle('active', enabled);
-    this._cctvEnableBtn.textContent = enabled ? t('CCTV ON') : t('CCTV OFF');
+    this._cctvEnableBtn.setAttribute('aria-pressed', String(enabled));
+    this._cctvEnableBtn.textContent = this._cctvEnablePending ? t('Loading cameras…') : enabled ? t('CCTV ON') : t('CCTV OFF');
+    this._cctvEnableBtn.disabled = !!this._cctvEnablePending;
+    this._cctvEnableBtn.setAttribute('aria-busy', String(!!this._cctvEnablePending));
   }
 
   if (this._cctvSelect) {
@@ -100,7 +107,9 @@ export function _renderCctvState(state) {
     // Tri-state (viewshed design §3b): off → on (wireframes) → viewshed
     // (color-coded volumes). The click handler cycles; this renders.
     const mode = state?.coverageMode || (state?.showCoverage ? 'on' : 'off');
-    this._cctvCoverageBtn.classList.toggle('active', mode !== 'off');
+    this._cctvCoverageBtn.classList.toggle('active', enabled && mode !== 'off');
+    this._cctvCoverageBtn.dataset.mode = mode;
+    this._cctvCoverageBtn.setAttribute('aria-pressed', String(enabled && mode !== 'off'));
     this._cctvCoverageBtn.textContent =
       mode === 'viewshed'
         ? t('VIEWSHED ON')
@@ -112,8 +121,9 @@ export function _renderCctvState(state) {
 
   if (this._cctvAutoHopBtn) {
     const autoHop = !!state?.autoHop;
-    this._cctvAutoHopBtn.classList.toggle('active', autoHop);
-    this._cctvAutoHopBtn.textContent = autoHop
+    this._cctvAutoHopBtn.classList.toggle('active', enabled && autoHop);
+    this._cctvAutoHopBtn.setAttribute('aria-pressed', String(enabled && autoHop));
+    this._cctvAutoHopBtn.textContent = enabled && autoHop
       ? t('AUTO HOP ON')
       : t('AUTO HOP OFF');
     this._cctvAutoHopBtn.disabled = !enabled;
@@ -121,8 +131,9 @@ export function _renderCctvState(state) {
 
   if (this._cctvProjectionBtn) {
     const showProjection = state?.showProjection !== false;
-    this._cctvProjectionBtn.classList.toggle('active', showProjection);
-    this._cctvProjectionBtn.textContent = showProjection
+    this._cctvProjectionBtn.classList.toggle('active', enabled && showProjection);
+    this._cctvProjectionBtn.setAttribute('aria-pressed', String(enabled && showProjection));
+    this._cctvProjectionBtn.textContent = enabled && showProjection
       ? t('PROJECTION ON')
       : t('PROJECTION OFF');
     this._cctvProjectionBtn.disabled = !enabled;
@@ -206,6 +217,7 @@ export function _renderCctvState(state) {
     const visible =
       liveIntent &&
       !document.hidden &&
+      !this._cctvPanel?.hidden &&
       !this._cctvPanel?.classList.contains('collapsed');
     if (!visible || this._cctvVideoCameraId !== activeId) {
       this._cctvVideoSurface?.stop();

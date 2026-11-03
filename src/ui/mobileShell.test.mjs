@@ -864,19 +864,12 @@ test('the phone shell keeps the required attribution visible', () => {
     const open = css.indexOf('{', end);
     return css.slice(open, css.indexOf('}', open));
   };
-  const lift = (block) =>
-    Number(
-      /bottom: calc\(var\(--mobile-tab-space\) \+ (\d+)px\)/.exec(block)?.[1],
-    );
   const z = (block) => Number(/z-index: (\d+);/.exec(block)?.[1]);
   const idleCredit = rule(
     'body.mobile-shell:not(.recording-mode):not(.cockpit-mode):not(.ui-clean-view) #cesium-credits',
   );
-  const dock = rule('body.mobile-shell #command-dock');
-  const voice = rule('body.mobile-shell #command-dock #gev-voice-control');
-  const voiceHeightPx = Number(/height: ([\d.]+)rem/.exec(voice)[1]) * 16;
-  // Idle: the credit line clears the voice bar, which clears the tab bar.
-  assert.ok(lift(idleCredit) > lift(dock) + voiceHeightPx);
+  // Idle clears navigation; an active floating player supplies its clearance.
+  assert.match(idleCredit, /bottom: calc\(var\(--mobile-tab-space\) \+ var\(--mobile-floating-clearance, 12px\)\)/);
   // It must beat the dock's :has() placements, so the offset is !important.
   assert.match(idleCredit, /\) !important;/);
   assert.doesNotMatch(

@@ -61,6 +61,7 @@ export function createProviderCommands(options, { bind, factories, storage }) {
     const pushToTalk = Boolean(
       current.session.adapter.getStartOptions?.().pushToTalk,
     );
+    const microphoneEnabled = current.session.adapter.getStartOptions?.().microphoneEnabled;
     const generation = ++mountGeneration;
     voiceEnabled = false;
     current.session.destroy();
@@ -79,7 +80,7 @@ export function createProviderCommands(options, { bind, factories, storage }) {
     }
     mount();
     if (resume && !disposed && provider === next)
-      void current.session.start({ pushToTalk });
+      void current.session.start({ pushToTalk, ...(microphoneEnabled === false ? { microphoneEnabled: false } : {}) });
     globalThis.document?.getElementById('gev-voice-provider')?.focus();
     return true;
   };

@@ -19,6 +19,8 @@ import { initMobileSettings } from './mobileSettings.js';
 import { initMobileMapControls } from './mobileMapControls.js';
 import { initMobileSheetPeek } from './mobileSheetPeek.js';
 import { initMobileLoadingClearance } from './mobileLoadingClearance.js';
+import { initMobileCameras } from './mobileCameras.js';
+import { initMobileTextMotion } from './mobileTextMotion.js';
 
 export const MOBILE_SHELL_MEDIA_QUERY = '(max-width: 720px)';
 export const MOBILE_SHELL_CLASS = 'mobile-shell';
@@ -194,6 +196,8 @@ export function initMobileShell({
   onMapZoom,
   onMapLocation,
   onLanguageSelect,
+  onCctvCoverageChange,
+  onCctvRetryFrame,
 } = {}) {
   const body = documentRef.body;
   const { headerScrim, footerScrim, searchBar, searchClose, tabBar, details, handle, title, close, content, sectionLabel } = buildChrome(documentRef);
@@ -488,6 +492,7 @@ export function initMobileShell({
     if (sheet) body.setAttribute(MOBILE_SHEET_ATTR, sheet);
     else body.removeAttribute(MOBILE_SHEET_ATTR);
     settingsPanel?.sync(sheet === 'more');
+    camerasPanel?.sync(sheet === 'cameras');
     if (sheet !== 'layers') {
       clearTimeout(layersCloseTimer);
       layersCloseTimer = null;
@@ -519,7 +524,7 @@ export function initMobileShell({
 
   /** The first visible control of the sheet's first panel, for focus on open. */
   const sheetFocusTarget = (sheet) => {
-    const panel = element(sheet === 'more' ? 'mobile-settings' : MOBILE_SHEET_PANELS[sheet][0]);
+    const panel = element(sheet === 'more' ? 'mobile-settings' : sheet === 'cameras' ? 'mobile-cameras-chrome' : MOBILE_SHEET_PANELS[sheet][0]);
     const controls =
       panel?.querySelectorAll?.(
         'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -660,6 +665,7 @@ export function initMobileShell({
     }
     tabBar.setAttribute('aria-hidden', String(!matches));
     mapControls?.setMobile(matches);
+    camerasPanel?.setMobile(matches);
   };
 
   const settingsPanel = initMobileSettings({
@@ -675,10 +681,20 @@ export function initMobileShell({
       setSheet(null);
     },
   });
+  const camerasPanel = initMobileCameras({
+    documentRef,
+    onClose: () => { returnFocus = tabFor('cameras') ?? returnFocus; setSheet(null); },
+    onCollapse: () => sheetPeek?.collapse(),
+    onCoverageChange: onCctvCoverageChange,
+    onRetryFrame: onCctvRetryFrame,
+    onConfigureKey: () => { setSheet('more'); onTabOpened('more'); settingsPanel?.show('keys', true); },
+  });
   const loadingClearance = initMobileLoadingClearance(documentRef);
+  const textMotion = initMobileTextMotion(documentRef);
   const mapControls = initMobileMapControls({
     documentRef,
     openSearch: () => setSearchOpen(true),
+    onVoiceOpen: () => { setSearchOpen(false); closeDetails(); setSheet(null); },
     openSettings: () => {
       if (currentSheetOf(body) === 'more') { settingsPanel?.dismiss(); return; }
       setSheet('more'); onTabOpened('more');
@@ -1122,6 +1138,7 @@ export function initMobileShell({
       const dy = touch.clientY - pull.y;
       if (dy < 64 || dy <= dx * 1.25) return;
       returnFocus = tabFor(pull.sheet) ?? returnFocus;
+      if (pull.sheet === 'cameras' && camerasPanel) { camerasPanel.dismiss(); return; }
       setSheet(null);
     },
     { passive: true },
@@ -1153,6 +1170,7 @@ export function initMobileShell({
     if (!sheet || documentRef.querySelector('dialog[open]')) return;
     event.preventDefault();
     if (sheet === 'more') { settingsPanel?.dismiss(); return; }
+    if (sheet === 'cameras' && camerasPanel) { camerasPanel.dismiss(); return; }
     returnFocus = tabFor(sheet) ?? returnFocus;
     setSheet(null);
   });
@@ -1203,11 +1221,13 @@ export function initMobileShell({
         : borrowed.before.get(panelId);
     },
     destroy() {
+      textMotion?.destroy();
       loadingClearance?.destroy();
       mapControls?.destroy();
       sheetPeek?.destroy();
       setSheet(null);
       settingsPanel?.destroy();
+      camerasPanel?.destroy();
       setSearchOpen(false);
       closeDetails();
       placePois(false);

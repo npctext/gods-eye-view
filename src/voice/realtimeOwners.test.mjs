@@ -263,3 +263,29 @@ test('late action or viewport completion cannot resume a stopped or replacement 
     }
   }
 });
+
+
+test('mobile provider reconnect starts muted before any microphone track is attached', async (t) => {
+  const { peers, streams, Peer } = browser(t);
+  const enabledAtAttach = [];
+  Peer.prototype.addTrack = track => enabledAtAttach.push(track.enabled);
+  const controller = new GevRealtimeController({
+    runner: async () => ({ ok: true }),
+    backend: {
+      async requestToken() { return { token: 'synthetic', model: resolveVoiceModel('mini').id }; },
+      async negotiate() { return 'answer'; },
+    },
+    debugSink: null,
+    ui: { root: { dataset: {}, classList: { remove() {} }, querySelectorAll: () => [] }, status: {}, detail: {} },
+  });
+  t.after(() => controller.stop());
+  await controller.start({ microphoneEnabled: false });
+  peers[0].channel.handlers.get('open')();
+  assert.deepEqual(enabledAtAttach, [false]);
+  assert.equal(streams[0].track.enabled, false);
+  controller.setMicrophoneEnabled(true);
+  assert.equal(streams[0].track.enabled, true);
+  assert.equal(controller.status, 'listening');
+  controller.stop();
+  assert.equal(streams[0].track.stops, 1);
+});

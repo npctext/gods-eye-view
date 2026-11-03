@@ -3610,3 +3610,20 @@ test('cancelling a queued globe reset also skips its dependent rotation', async 
     h.c.stop();
   }
 });
+
+
+test('mobile reconnect can start with Gemini capture muted and unmute without reconnecting', async (t) => {
+  const h = harness();
+  t.after(() => h.c.stop());
+  await h.c.start({ microphoneEnabled: false });
+  assert.equal(h.tracks[0].enabled, false);
+  assert.equal(h.c.captureEnabled, false);
+  assert.equal(h.c.status, 'listening');
+  h.c.input.setMicrophoneEnabled(true);
+  assert.equal(h.tracks[0].enabled, true);
+  assert.equal(h.c.captureEnabled, true);
+  assert.equal(h.sockets.length, 1);
+  h.c.input.setMicrophoneEnabled(false);
+  assert.equal(h.c.status, 'listening');
+  assert.equal(h.c.captureEnabled, false);
+});

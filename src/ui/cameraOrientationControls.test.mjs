@@ -740,3 +740,83 @@ test('rapid tilt presses reverse direction and north-up keeps the requested tilt
   controls.destroy();
   assert.equal(viewer.scene.preUpdate.numberOfListeners, 0);
 });
+
+test('2D state follows the actual orbit and levels a manually tilted view', () => {
+  for (const range of [3_000, 18_000_000]) {
+    const { viewer } = createRealViewer(AUSTIN_GROUND);
+    orbit(viewer, AUSTIN_GROUND, 30, STRAIGHT_DOWN_PITCH, range);
+    const tiltButton = new FakeButton();
+    const controls = bindCameraOrientationControls({
+      viewer,
+      elements: { tiltButton },
+      runNavigation: (_noun, navigate) => navigate(),
+    });
+    assert.equal(tiltButton.getAttribute('data-top-down'), 'true');
+    for (const pitch of [-75, -65, -35]) {
+      orbit(viewer, AUSTIN_GROUND, 30, Cesium.Math.toRadians(pitch), range);
+      viewer.camera.moveEnd.raiseEvent();
+      assert.equal(tiltButton.getAttribute('data-top-down'), 'false');
+      tiltButton.click();
+      assert.ok(Math.abs(readCameraTargetFrame(viewer).pitch - STRAIGHT_DOWN_PITCH) < 1e-6);
+      assert.equal(tiltButton.getAttribute('data-top-down'), 'true');
+    }
+    controls.destroy();
+  }
+});
+
+test('cancelled 2D transitions retain the actual view and the next tap levels it', (t) => {
+  let time = 0;
+  t.mock.method(performance, 'now', () => time);
+  for (const trigger of ['pointerdown', 'wheel', 'navigation', 'tracked']) {
+    const { viewer } = createRealViewer(AUSTIN_GROUND);
+    viewer.scene.canvas = Object.assign(new EventTarget(), viewer.scene.canvas);
+    viewer.scene.preUpdate = new Cesium.Event();
+    viewer.trackedEntityChanged = new Cesium.Event();
+    orbit(viewer, AUSTIN_GROUND, 30, OBLIQUE_PITCH, 3000);
+    const tiltButton = new FakeButton();
+    let controls;
+    controls = bindCameraOrientationControls({
+      viewer,
+      elements: { tiltButton },
+      runNavigation: (_noun, navigate) => {
+        controls.cancel();
+        return navigate();
+      },
+    });
+    tiltButton.click();
+    assert.equal(tiltButton.getAttribute('data-top-down'), 'false', '2D is not active before arrival');
+    time += 150;
+    viewer.scene.preUpdate.raiseEvent();
+    if (trigger === 'navigation') controls.cancel();
+    else if (trigger === 'tracked') viewer.trackedEntityChanged.raiseEvent();
+    else viewer.scene.canvas.dispatchEvent(new Event(trigger));
+    assert.equal(viewer.scene.preUpdate.numberOfListeners, 0);
+    assert.equal(tiltButton.getAttribute('aria-pressed'), 'true', trigger);
+    assert.equal(tiltButton.getAttribute('data-top-down'), 'false', trigger);
+    tiltButton.click();
+    time += 650;
+    viewer.scene.preUpdate.raiseEvent();
+    // Cesium can finish lookAt without emitting moveEnd.
+    assert.ok(Math.abs(readCameraTargetFrame(viewer).pitch - STRAIGHT_DOWN_PITCH) < 1e-6);
+    assert.equal(tiltButton.getAttribute('data-top-down'), 'true');
+    controls.destroy();
+    assert.equal(viewer.trackedEntityChanged.numberOfListeners, 0);
+    assert.equal(viewer.scene.preUpdate.numberOfListeners, 0);
+  }
+});
+
+test('a view without a valid map target never claims to be 2D', () => {
+  const { viewer } = createViewer();
+  viewer.scene.globe.pick = () => null;
+  viewer.camera.pickEllipsoid = () => null;
+  const tiltButton = new FakeButton();
+  const controls = bindCameraOrientationControls({
+    viewer,
+    elements: { tiltButton },
+    runNavigation: (_noun, navigate) => navigate(),
+  });
+  assert.equal(tiltButton.getAttribute('data-top-down'), 'false');
+  tiltButton.click();
+  assert.equal(tiltButton.getAttribute('data-top-down'), 'false');
+  controls.destroy();
+});

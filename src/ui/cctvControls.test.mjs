@@ -197,7 +197,7 @@ test('disposing during camera enable prevents the delayed focus and future click
   let enables = 0;
   let focuses = 0;
   const controls = new CctvControls({
-    elements: { _cctvPanel: {}, _cctvNextBtn: button },
+    elements: { _cctvPanel: { dataset: {} }, _cctvNextBtn: button },
     cctv: {},
     actions: {
       isEnabled: () => true,
@@ -220,4 +220,59 @@ test('disposing during camera enable prevents the delayed focus and future click
   button.dispatchEvent(new Event('click'));
   assert.equal(enables, 1);
   assert.equal(focuses, 0);
+});
+
+test('coverage can be selected directly without visiting intermediate modes', (t) => {
+  const { controls } = fixture(t);
+  const changes = [];
+  controls.actions.setParams = (...args) => changes.push(args);
+  controls._cctvState = { enabled: true, coverageMode: 'off' };
+  controls.setCoverageMode('viewshed');
+  assert.deepEqual(changes, [[{ coverageMode: 'viewshed' }, { origin: 'user' }]]);
+  controls.setCoverageMode('invalid');
+  controls.actions.isEnabled = () => false;
+  controls.setCoverageMode('on');
+  controls.actions.isEnabled = () => true;
+  controls._cctvState.enabled = false;
+  controls.setCoverageMode('on');
+  controls.destroy();
+  controls.setCoverageMode('off');
+  assert.equal(changes.length, 1);
+});
+
+test('retry uses the current camera and a late failed attempt cannot replace it', (t) => {
+  const { controls, requests } = fixture(t);
+  controls._cctvState = { enabled: true, activeCamera: { id: 'a', frameUrl: 'a.jpg' } };
+  controls._queueCctvFrame('a.jpg', 'a', true);
+  const stale = requests[0].onload;
+  requests[0].onerror();
+  controls.retryFrame();
+  assert.equal(requests.length, 2);
+  assert.equal(controls._cctvFrame.dataset.loading, 'true');
+  requests[1].onload();
+  controls._cctvState.activeCamera = { id: 'b', frameUrl: 'b.jpg' };
+  controls._queueCctvFrame('b.jpg', 'b', true);
+  requests[2].onload();
+  stale();
+  assert.equal(controls._cctvFrame.src, 'b.jpg');
+  controls.actions.isEnabled = () => false;
+  controls.retryFrame();
+  assert.equal(requests.length, 3);
+});
+
+test('turning the layer off clears effective pressed states without losing preferences', (t) => {
+  const { controls } = fixture(t);
+  for (const key of ['_cctvEnableBtn', '_cctvCoverageBtn', '_cctvAutoHopBtn', '_cctvProjectionBtn', '_cctvAdjustBtn']) {
+    controls[key] = element();
+    controls[key].setAttribute = function (name, value) { this[name] = value; };
+  }
+  controls._renderCctvState({ enabled: false, coverageMode: 'viewshed', autoHop: true, showProjection: true, calibrationMode: true });
+  for (const key of ['_cctvCoverageBtn', '_cctvAutoHopBtn', '_cctvProjectionBtn', '_cctvAdjustBtn']) {
+    assert.equal(controls[key]['aria-pressed'], 'false');
+    assert.equal(controls[key].disabled, true);
+    assert.equal(controls[key].classList.contains('active'), false);
+  }
+  assert.equal(controls._cctvCoverageBtn.dataset.mode, 'viewshed');
+  assert.equal(controls.getState().autoHop, true);
+  assert.equal(controls.getState().showProjection, true);
 });

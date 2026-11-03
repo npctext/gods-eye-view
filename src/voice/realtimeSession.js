@@ -16,7 +16,12 @@ export function createRealtimeSession({
     controller,
     capabilities: { costControls: true, pushToTalk: true },
     start: (settings) => controller.start(settings),
-    getStartOptions: () => ({ pushToTalk: Boolean(controller.pushToTalkMode) }),
+    getStartOptions: () => ({
+      pushToTalk: Boolean(controller.pushToTalkMode),
+      ...(!controller.pushToTalkMode && controller.ui?.root?.dataset.microphone === 'muted' ? { microphoneEnabled: false } : {}),
+    }),
+    setMicrophoneEnabled(enabled) { controller.setMicrophoneEnabled(enabled); return true; },
+    interrupt: () => controller.bargeIn(),
     stop: (settings) => controller.stop(settings),
     sendText: (text) => controller.sendTextCommand(text),
     sendMapEvent: (event) => controller.notifyMapEvent(event),

@@ -71,6 +71,8 @@ export const FLAP_STAGGER_MS = 26;
  * a slot machine, not a quiet mechanical settle.
  */
 export const FLAP_MAX_TOTAL_MS = 620;
+/** Shared timing for short mobile status labels. */
+export const MOBILE_FLAP_TIMING = Object.freeze({ charMs: 140, staggerMs: 18, maxTotalMs: 400 });
 /** Slack after the last character lands before the cells are stripped. */
 const FLAP_SETTLE_SLACK_MS = 60;
 /**
@@ -363,6 +365,10 @@ function cancelWidthEase(element) {
  */
 function easeWidth(element, fromWidth, toWidth, durationMs) {
   cancelWidthEase(element);
+  if (element.ownerDocument?.body?.classList?.contains('mobile-shell')) {
+    clearSizing(element);
+    return false;
+  }
   if (!(fromWidth > 0.5) || Math.abs(toWidth - fromWidth) <= 0.5) {
     clearSizing(element);
     return false;
@@ -440,12 +446,14 @@ function settle(element, expected, easeMs) {
  *
  * @param {HTMLElement|null} element - Chip label element.
  * @param {string} text - Text to settle on.
- * @param {{immediate?: boolean, charMs?: number, staggerMs?: number,
+ * @param {{immediate?: boolean, reveal?: boolean, charMs?: number, staggerMs?: number,
  *          maxTotalMs?: number}} [options]
  * @returns {boolean} True when a flap animation was started.
  */
 export function setSplitFlapText(element, text, options = {}) {
   if (!element) return false;
+  if (element.ownerDocument?.body?.classList?.contains('mobile-shell'))
+    options = { ...MOBILE_FLAP_TIMING, ...options };
   const next = String(text ?? '');
   // Upgrade to the permanent shell FIRST, so that one-time structural change
   // happens on a tick where the text is not changing. Every subsequent label
@@ -454,13 +462,16 @@ export function setSplitFlapText(element, text, options = {}) {
   // textContent is the SETTLED string even mid-cascade, so this is the right
   // idempotence check against the repeating chip tickers.
   const settled = element.textContent ?? '';
-  if (settled === next) return false;
+  if (settled === next && !options.reveal) {
+    if (options.immediate) disposeSplitFlap(element);
+    return false;
+  }
 
   // What the viewer can SEE right now. Mid-cascade that is not the settled
   // string: columns whose stagger has not elapsed are still showing the
   // previous label's glyphs, and those are what must flap away.
   const state = flapStates.get(element);
-  const displayed = state
+  const displayed = options.reveal ? '' : state
     ? visibleGlyphs(state.plan, nowMs() - state.startedAt, {
         charMs: state.charMs,
       })
@@ -473,6 +484,7 @@ export function setSplitFlapText(element, text, options = {}) {
     SPLIT_FLAP_ENABLED &&
     options.immediate !== true &&
     !prefersReducedMotion() &&
+    !element.ownerDocument?.hidden &&
     isVisible(element);
 
   const plan = animate ? planSplitFlap(displayed, next, options) : null;
@@ -480,7 +492,7 @@ export function setSplitFlapText(element, text, options = {}) {
   // THE ONLY TEXT OPERATION. One characterData mutation, no reparenting, so
   // the label is never transiently empty and the live region cannot see a
   // removal/reinsertion pair (invariant 1).
-  host.text.firstChild.data = next;
+  if (settled !== next) host.text.firstChild.data = next;
 
   if (!plan?.changedCount) {
     cancelWidthEase(element);
@@ -543,4 +555,5 @@ export function disposeSplitFlap(element) {
   clearSizing(element);
   const cells = element.querySelector?.('.gev-flap-cells');
   if (cells) rest(element, { cells });
+  else element.classList?.remove(ACTIVE_CLASS);
 }

@@ -3,7 +3,7 @@
   display: inline-flex;
   min-width: 0;
   border: 1px solid var(--glass-border-hover);
-  border-radius: 6px;
+  border-radius: var(--radius-surface, 6px);
   overflow: hidden;
 }
 .gev-segmented[hidden] {

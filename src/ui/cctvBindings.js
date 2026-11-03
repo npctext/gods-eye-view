@@ -4,8 +4,16 @@ export function _initCctvPanel() {
   if (!this._cctvPanel) return;
 
   this.listen(this._cctvEnableBtn, 'click', async () => {
+    if (this._cctvEnablePending) return;
     this._actionGeneration++;
-    await this.actions.toggleEnabled();
+    this._cctvEnablePending = true;
+    this._renderCctvState(this._cctvState);
+    try {
+      await this.actions.toggleEnabled();
+    } finally {
+      this._cctvEnablePending = false;
+      this._renderCctvState(this._cctvState);
+    }
   });
 
   this.listen(this._cctvNearestBtn, 'click', async () => {
@@ -108,7 +116,7 @@ export function _initCctvPanel() {
       (this._cctvState?.showCoverage ? 'on' : 'off');
     const next =
       current === 'off' ? 'on' : current === 'on' ? 'viewshed' : 'off';
-    this.actions.setParams({ coverageMode: next }, { origin: 'user' });
+    this.setCoverageMode(next);
   });
 
   this.listen(this._cctvAutoHopBtn, 'click', () => {

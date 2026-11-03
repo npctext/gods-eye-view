@@ -179,6 +179,14 @@ export function createVoiceSession({ createAdapter, runner, signal }) {
           emit({ type: 'state', state: 'idle', detail: 'Voice off' });
       }
     },
+    setMicrophoneEnabled(enabled) {
+      if (disposed || !['listening', 'executing'].includes(state)) return false;
+      return adapter.setMicrophoneEnabled?.(Boolean(enabled)) ?? false;
+    },
+    interrupt() {
+      if (disposed || !['listening', 'executing'].includes(state)) return false;
+      return adapter.interrupt?.() ?? false;
+    },
     sendText: (text) => !disposed && adapter.sendText(text),
     sendMapEvent: (event) => !disposed && adapter.sendMapEvent(event),
     destroy: () => dispose(),

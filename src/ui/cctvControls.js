@@ -61,6 +61,16 @@ export class CctvControls {
   getState() {
     return this._cctvState;
   }
+  setCoverageMode(mode) {
+    if (this.destroyed || !this._cctvState?.enabled || !this.actions.isEnabled() || !['off', 'on', 'viewshed'].includes(mode)) return;
+    this.actions.setParams({ coverageMode: mode }, { origin: 'user' });
+  }
+  retryFrame() {
+    const camera = this._cctvState?.activeCamera;
+    if (this.destroyed || !this._cctvState?.enabled || !this.actions.isEnabled() || !camera?.frameUrl || camera.isVideo) return;
+    this._queueCctvFrame(camera.frameUrl, camera.id, false);
+    this._syncCctvSourceBadge(camera, true);
+  }
   connect() {
     this._cctvUnsubscribe?.();
     this._cctvUnsubscribe = null;

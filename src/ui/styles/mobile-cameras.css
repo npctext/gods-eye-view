@@ -1,0 +1,285 @@
+/* Cameras borrows the shared sheet surface and the live desktop controls. */
+#mobile-cameras-chrome { display: none; }
+
+body.mobile-shell[data-mobile-sheet='cameras'] #right-context-rail {
+  height: var(--mobile-sheet-max-height);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  transition: max-height var(--mobile-sheet-animation-duration) ease, translate var(--mobile-sheet-animation-duration) ease, transform var(--mobile-sheet-animation-duration) ease;
+}
+body.mobile-shell[data-mobile-sheet='cameras'] #right-context-rail.mobile-cameras-dragging { transition: none; }
+body.mobile-shell[data-mobile-sheet='cameras'] #right-context-rail > #mobile-cameras-chrome { display: block; flex: none; }
+body.mobile-shell[data-mobile-sheet='cameras'] #right-context-rail > :is(#cctv-panel, #street-level-panel).mobile-camera-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  --font-mono: var(--font-plex-mono);
+}
+body.mobile-shell[data-mobile-sheet='cameras'] #right-context-rail > :is(#cctv-panel, #street-level-panel).mobile-camera-pane[hidden] { display: none; }
+body.mobile-shell #mobile-cameras-chrome .mobile-cameras-header { position: relative; }
+body.mobile-shell #mobile-cameras-chrome .mobile-cameras-collapse {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 64px;
+  padding: 24px 64px 14px 16px;
+  border: 0;
+  background: none;
+  text-align: left;
+  touch-action: none;
+  cursor: pointer;
+}
+body.mobile-shell #mobile-cameras-chrome .mobile-details-handle { position: absolute; top: 0; left: 0; width: 100%; }
+body.mobile-shell #mobile-cameras-chrome .mobile-sheet-close { position: absolute; top: 17px; right: 10px; width: 44px; height: 44px; }
+body.mobile-shell #mobile-cameras-chrome .mobile-cameras-tabs { margin: 0 16px 14px; }
+body.mobile-shell #right-context-rail > :is(#cctv-panel, #street-level-panel).mobile-camera-pane > :is(.cctv-panel-inner, .street-level-panel-inner) {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: none;
+  padding: 16px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  color: var(--mobile-map-text);
+  font: 400 14px/1.45 var(--font-sans);
+}
+body.mobile-shell .mobile-camera-pane .panel-header,
+body.mobile-shell #right-context-rail #cctv-panel .cyber-panel-body > :is(.cctv-controls, .cctv-summary-label),
+body.mobile-shell #right-context-rail #cctv-panel .cctv-frame-caption,
+body.mobile-shell #right-context-rail #cctv-panel .cctv-calibration-header .cctv-summary-label { display: none; }
+body.mobile-shell #right-context-rail #cctv-panel .cyber-panel-body { display: contents; }
+body.mobile-shell #right-context-rail #cctv-panel :is(.mobile-camera-main, .mobile-camera-options),
+body.mobile-shell #right-context-rail #street-level-panel :is(.sl-body, .sl-controls) { display: flex; flex-direction: column; gap: 12px; }
+body.mobile-shell #right-context-rail #street-level-panel .sl-body { padding: 0; }
+
+/* One family for actions, segments and fields. State colors live in the map tokens. */
+body.mobile-shell #right-context-rail[data-camera-tab] :is(.mobile-camera-pane button:not(:where(#sl-viewer button)), .mobile-camera-segments button) {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--mobile-map-panel-border);
+  border-radius: var(--radius-control, 8px);
+  background: var(--mobile-map-bg);
+  color: var(--mobile-map-text);
+  font: 500 13px/18px var(--font-sans);
+  letter-spacing: 0;
+  text-shadow: none;
+  box-shadow: none;
+  white-space: normal;
+  text-transform: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+body.mobile-shell #right-context-rail[data-camera-tab] :is(.mobile-camera-pane button:not(:where(#sl-viewer button)), .mobile-camera-segments button)::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  width: auto;
+  height: auto;
+  border-radius: var(--radius-control-inset, 5px);
+  background: var(--mobile-map-selected);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+body.mobile-shell #right-context-rail[data-camera-tab] :is(.mobile-camera-pane button:not(:where(#sl-viewer button)), .mobile-camera-segments button):active:not(:disabled)::before {
+  opacity: 0.45;
+  transition-duration: 80ms;
+}
+body.mobile-shell #right-context-rail[data-camera-tab] :is(.mobile-camera-pane button:not(:where(#sl-viewer button)), .mobile-camera-segments button):focus-visible,
+body.mobile-shell #right-context-rail[data-camera-tab] :is(.mobile-camera-pane select, .mobile-camera-pane summary, .mobile-cameras-collapse):focus-visible {
+  outline: 2px solid var(--mobile-map-accent);
+  outline-offset: -3px;
+}
+body.mobile-shell #right-context-rail[data-camera-tab] :is(.mobile-camera-pane button:not(:where(#sl-viewer button)), .mobile-camera-segments button):is([aria-pressed='true'], [aria-checked='true'], [aria-selected='true']):not(:disabled) {
+  color: var(--mobile-map-accent);
+  border-color: var(--mobile-map-panel-border);
+  background: var(--mobile-map-selected);
+}
+body.mobile-shell #right-context-rail[data-camera-tab] .mobile-camera-pane :is(button, input, select):disabled {
+  color: var(--mobile-map-muted);
+  border-color: var(--mobile-sheet-divider-color);
+  background: var(--mobile-map-bg);
+  opacity: 0.5;
+  cursor: default;
+}
+body.mobile-shell #right-context-rail #street-level-panel fieldset:disabled { opacity: 1; }
+body.mobile-shell #right-context-rail[data-camera-tab] :is(#cctv-panel, #street-level-panel) [hidden] { display: none; }
+body.mobile-shell #right-context-rail[data-camera-tab] .mobile-camera-segments,
+body.mobile-shell #right-context-rail #street-level-panel .gev-segmented {
+  display: flex;
+  width: auto;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--mobile-sheet-divider-color);
+  border-radius: var(--radius-surface, 12px);
+  background: var(--mobile-map-bg);
+}
+body.mobile-shell #right-context-rail[data-camera-tab] .mobile-camera-segments button,
+body.mobile-shell #right-context-rail #street-level-panel .gev-segmented button { flex: 1 1 0; border-color: transparent; background: none; }
+body.mobile-shell #right-context-rail #mobile-cameras-chrome .mobile-camera-segments button { font-size: 14px; }
+body.mobile-shell .mobile-camera-field { display: flex; flex-direction: column; gap: 8px; color: var(--mobile-map-muted); font: 400 12px/18px var(--font-sans); }
+body.mobile-shell #right-context-rail #cctv-panel #cctv-camera-select {
+  flex: none;
+  order: 0;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid var(--mobile-map-panel-border);
+  border-radius: var(--radius-control, 8px);
+  color: var(--mobile-map-text);
+  background: var(--mobile-map-bg);
+  font: 400 14px/20px var(--font-sans);
+}
+body.mobile-shell #right-context-rail #cctv-panel :is(#cctv-enable-btn, #cctv-auto-hop-btn, #cctv-projection-btn) {
+  flex: none;
+  width: 100%;
+  padding-right: 60px;
+  text-align: left;
+}
+body.mobile-shell #right-context-rail #cctv-panel :is(#cctv-enable-btn, #cctv-auto-hop-btn, #cctv-projection-btn)::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: calc(50% - 10px);
+  box-sizing: border-box;
+  width: 34px;
+  height: 20px;
+  border: 1px solid var(--mobile-sheet-divider-color);
+  border-radius: var(--radius-control, 10px);
+  background: radial-gradient(circle at 9px 9px, var(--icon-color) 6px, transparent 6.5px), var(--mobile-map-bg);
+}
+body.mobile-shell #right-context-rail #cctv-panel :is(#cctv-enable-btn, #cctv-auto-hop-btn, #cctv-projection-btn)[aria-pressed='true']:not(:disabled)::after {
+  border-color: var(--mobile-map-accent);
+  background: radial-gradient(circle at 23px 9px, var(--mobile-map-accent) 6px, transparent 6.5px), var(--mobile-map-selected);
+}
+body.mobile-shell #right-context-rail #cctv-panel #cctv-frame-wrap {
+  position: relative;
+  display: block;
+  flex: none;
+  box-sizing: border-box;
+  width: 100%;
+  height: auto;
+  min-height: 150px;
+  aspect-ratio: 16 / 9;
+  margin: 0;
+  border: 1px solid var(--mobile-map-panel-border);
+  border-radius: var(--radius-surface, 10px);
+  background: var(--mobile-map-bg);
+  overflow: hidden;
+}
+body.mobile-shell #right-context-rail #cctv-panel #cctv-frame-wrap::after { display: none; }
+body.mobile-shell #right-context-rail #cctv-panel :is(#cctv-frame, #cctv-video) { width: 100%; height: 100%; object-fit: contain; }
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 28px;
+  color: var(--mobile-map-muted);
+  text-align: center;
+  font: 400 13px/20px var(--font-sans);
+}
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-placeholder[data-loading='true']::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--mobile-sheet-divider-color);
+  border-top-color: var(--mobile-map-accent);
+  border-radius: 50%;
+  animation: mobile-camera-loading 900ms linear infinite;
+}
+@keyframes mobile-camera-loading { to { transform: rotate(360deg); } }
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-placeholder[data-error='true'] { color: hsla(0, 80%, 74%, 1); }
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-expand { position: absolute; top: 8px; right: 8px; width: 44px; padding: 12px; }
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-expand span { display: block; width: 18px; height: 18px; color: var(--icon-color); }
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-expand[aria-pressed='true'] span { color: var(--mobile-map-accent); }
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-expand svg { display: block; width: 100%; height: 100%; }
+body.mobile-shell #right-context-rail #cctv-panel #cctv-frame-wrap:is(:fullscreen, :popover-open) {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: hsla(210, 43%, 5%, 1);
+}
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-navigation { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 8px; }
+body.mobile-shell #right-context-rail #cctv-panel :is(#cctv-prev-btn, #cctv-next-btn) { font-size: 0; line-height: 0; padding: 12px; }
+body.mobile-shell #right-context-rail #cctv-panel :is(#cctv-prev-btn, #cctv-next-btn)::after { content: ''; display: block; width: 9px; height: 9px; margin: auto; border: solid var(--icon-color); border-width: 0 1.5px 1.5px 0; transform: rotate(135deg); }
+body.mobile-shell #right-context-rail #cctv-panel #cctv-next-btn::after { transform: rotate(-45deg); }
+body.mobile-shell #right-context-rail #cctv-panel :is(#cctv-meta, #cctv-summary) { color: var(--mobile-map-muted); font: 400 11px/18px var(--font-plex-mono); overflow-wrap: anywhere; margin-top: 12px; }
+body.mobile-shell #right-context-rail #cctv-panel :is(#cctv-source-badge, #cctv-quality-chip) {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-detail, 4px);
+  color: var(--mobile-map-muted);
+  background: var(--mobile-map-bg);
+  font: 400 10px/16px var(--font-plex-mono);
+  white-space: normal;
+}
+body.mobile-shell #right-context-rail #cctv-panel #cctv-source-badge[data-frame-state='loading'] { color: var(--mobile-map-accent); }
+body.mobile-shell #right-context-rail #cctv-panel #cctv-source-badge[data-frame-state='error'] { color: hsla(0, 80%, 74%, 1); }
+body.mobile-shell #right-context-rail #cctv-panel[data-source-status='degraded'] #cctv-source-badge { color: hsla(40, 100%, 70%, 1); }
+body.mobile-shell #right-context-rail #cctv-panel[data-source-status='error'] #cctv-source-badge { color: hsla(0, 80%, 74%, 1); }
+body.mobile-shell #right-context-rail #cctv-panel #cctv-quality-chip[data-cal-badge='edited'] { color: hsla(40, 100%, 70%, 1); }
+body.mobile-shell #right-context-rail #cctv-panel #cctv-quality-chip:is([data-cal-badge='calibrated'], [data-cal-badge='curated']) { color: var(--mobile-map-accent); }
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-details { border-top: 1px solid var(--mobile-sheet-divider-color); padding-top: 8px; }
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-details > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; cursor: pointer; list-style: none; font: 500 13px/20px var(--font-sans); }
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-details > summary::-webkit-details-marker { display: none; }
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-details > summary::after { content: ''; flex: none; width: 7px; height: 7px; border: solid var(--icon-color); border-width: 0 1px 1px 0; transform: rotate(45deg); margin: 0 4px; }
+body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-details[open] > summary::after { transform: rotate(225deg); }
+body.mobile-shell #right-context-rail #cctv-panel .cctv-cal-readout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+body.mobile-shell #right-context-rail #cctv-panel .cctv-calibration-block { margin: 8px 0 0; padding: 0; border: 0; }
+body.mobile-shell #right-context-rail #cctv-panel .cctv-calibration-actions { display: flex; gap: 8px; }
+body.mobile-shell #right-context-rail #cctv-panel .cctv-cal-value { text-align: left; font-family: var(--font-plex-mono); font-size: 11px; }
+body.mobile-shell #right-context-rail #cctv-panel .cctv-cal-value input { width: 100%; min-width: 0; color: var(--mobile-map-text); font: inherit; }
+body.mobile-shell #right-context-rail #street-level-panel .mobile-camera-street-enable { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+body.mobile-shell #right-context-rail #street-level-panel #sl-status { flex: 0 1 auto; max-width: 65%; font-family: var(--font-plex-mono); font-size: 11px; }
+body.mobile-shell #right-context-rail #street-level-panel #sl-status.is-warn { color: hsla(40, 100%, 70%, 1); }
+body.mobile-shell #right-context-rail #street-level-panel .sl-providers { display: flex; align-items: stretch; flex-direction: column; gap: 8px; }
+body.mobile-shell #right-context-rail #street-level-panel .sl-chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+body.mobile-shell #right-context-rail #street-level-panel .sl-chips .data-toggle-chip { padding: 9px 4px; justify-content: center; flex-direction: column; font-size: 12px; gap: 4px; }
+body.mobile-shell #right-context-rail #street-level-panel .sl-chips .data-toggle-chip::before { position: static; inset: auto; width: 5px; height: 5px; background: var(--chip-color); border-radius: 50%; opacity: 1; }
+body.mobile-shell #right-context-rail #street-level-panel .sl-chips .data-toggle-chip.chip-error { border-color: hsla(40, 70%, 40%, 1); }
+body.mobile-shell #right-context-rail #street-level-panel .cctv-summary-label { font: 400 10px/16px var(--font-plex-mono); color: var(--mobile-map-muted); letter-spacing: 1px; }
+body.mobile-shell #right-context-rail #street-level-panel .sl-filter-row { flex-wrap: wrap; gap: 8px; }
+body.mobile-shell #right-context-rail #street-level-panel #sl-pano-row { display: flex; flex-direction: column; align-items: stretch; }
+body.mobile-shell #right-context-rail #street-level-panel #sl-since { min-width: 0; height: 36px; accent-color: var(--mobile-map-accent); }
+body.mobile-shell #right-context-rail #street-level-panel :is(.sl-meta, .sl-since-label, .sl-since-note, .sl-image-meta, .sl-viewer-placeholder) { color: var(--mobile-map-muted); font: 400 11px/18px var(--font-plex-mono); overflow-wrap: anywhere; }
+body.mobile-shell #right-context-rail #street-level-panel .sl-meta-row { flex-direction: column; align-items: stretch; gap: 8px; }
+body.mobile-shell #right-context-rail #street-level-panel .sl-meta-row .sl-meta { flex: none; }
+body.mobile-shell #right-context-rail #street-level-panel #sl-error { display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; border: 1px solid hsla(40, 55%, 28%, 1); border-radius: var(--radius-surface, 8px); color: hsla(40, 100%, 76%, 1); background: hsla(40, 50%, 12%, 0.2); font: 400 13px/20px var(--font-sans); }
+body.mobile-shell #right-context-rail #street-level-panel .sl-error-icon { display: none; }
+body.mobile-shell #right-context-rail #street-level-panel #sl-error > :first-child:not(#sl-error-text) { display: none; }
+body.mobile-shell #right-context-rail #street-level-panel #sl-error[hidden] { display: none; }
+body.mobile-shell #right-context-rail #street-level-panel .sl-viewer-wrap { border: 1px solid var(--mobile-map-panel-border); border-radius: var(--radius-surface, 10px); background: var(--mobile-map-bg); }
+body.mobile-shell #right-context-rail #street-level-panel .sl-viewer-bar { flex-wrap: wrap; gap: 4px; padding: 6px; background: var(--mobile-map-bg); border-color: var(--mobile-sheet-divider-color); }
+body.mobile-shell #right-context-rail #street-level-panel .sl-viewer-tools { gap: 4px; min-width: 0; }
+body.mobile-shell #right-context-rail #street-level-panel .sl-viewer-bar button { padding: 8px; font-size: 11px; }
+body.mobile-shell #right-context-rail #street-level-panel .sl-viewer-bar .gev-segmented { padding: 0; border: 0; }
+body.mobile-shell #right-context-rail #street-level-panel .sl-viewer-x { width: 44px; font-size: 24px; color: var(--icon-color); }
+
+@media (prefers-reduced-motion: reduce) {
+  body.mobile-shell[data-mobile-sheet='cameras'] #right-context-rail,
+  body.mobile-shell #right-context-rail[data-camera-tab] button::before { transition: none; }
+  body.mobile-shell #right-context-rail #cctv-panel .mobile-camera-placeholder::before { animation: none; }
+}

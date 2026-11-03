@@ -886,3 +886,14 @@ for (const action of ['stop', 'destroy']) {
     });
   }
 }
+
+
+test('switching provider carries an explicitly muted open microphone into startup', async (t) => {
+  const f = compositionFixture(t);
+  await f.facade.start({ pushToTalk: false });
+  f.instances[0].adapter.getStartOptions = () => ({ pushToTalk: false, microphoneEnabled: false });
+  f.select('gemini');
+  await settle();
+  assert.deepEqual(f.instances[1].starts, [{ pushToTalk: false, microphoneEnabled: false }]);
+  assert.equal(f.facade.isActive(), true);
+});

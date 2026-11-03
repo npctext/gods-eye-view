@@ -14,7 +14,7 @@ function trackedTarget(viewer) {
 
 export const OBLIQUE_PITCH = Cesium.Math.toRadians(-35);
 export const STRAIGHT_DOWN_PITCH = Cesium.Math.toRadians(-89);
-const OBLIQUE_THRESHOLD = Cesium.Math.toRadians(-60);
+const OBLIQUE_THRESHOLD = Cesium.Math.toRadians(-88);
 
 function normalizedHeading(heading) {
   const wrapped = Cesium.Math.zeroToTwoPi(
@@ -186,7 +186,7 @@ function headingDegrees(camera) {
 /** Ease an orbit without handing off the entity that owns the follow camera. */
 export function createCameraOrientationAnimator(
   viewer,
-  { now = () => performance.now(), duration = 650 } = {},
+  { now = () => performance.now(), duration = 650, onAnimationComplete } = {},
 ) {
   let remove = null;
   let pending = null;
@@ -225,7 +225,10 @@ export function createCameraOrientationAnimator(
         cancel();
         return;
       }
-      if (progress === 1) cancel();
+      if (progress === 1) {
+        cancel();
+        onAnimationComplete?.(destination);
+      }
     });
     viewer.scene.requestRender?.();
     return true;
@@ -282,13 +285,27 @@ export function bindCameraOrientationControls({
   // of the screen: 4 ms median and up to 12 ms, measured on this machine. It is
   // therefore held between refreshes rather than recomputed per frame.
   let tilted = false;
-  const animator = createCameraOrientationAnimator(viewer);
+  let topDown = false;
+  const animator = createCameraOrientationAnimator(viewer, {
+    onAnimationComplete(frame) {
+      // Programmatic lookAt animations do not always emit camera.moveEnd.
+      tilted = frameIsTilted(frame);
+      topDown = !tilted;
+      sync();
+    },
+  });
 
   /** Recompute the tilt state exactly, paying for one pick. */
   const refreshTilt = () => {
     if (destroyed) return;
-    tilted = frameIsTilted(readCameraTargetFrame(viewer));
+    const frame = readCameraTargetFrame(viewer);
+    tilted = frameIsTilted(frame);
+    topDown = Boolean(frame) && !tilted;
     sync();
+  };
+  const cancel = () => {
+    animator.cancel();
+    refreshTilt();
   };
 
   /**
@@ -303,11 +320,13 @@ export function bindCameraOrientationControls({
     if (destroyed) return;
     const next = {
       tilted,
+      topDown,
       heading: Math.round(headingDegrees(viewer?.camera)) % 360,
     };
     if (
       applied &&
       applied.tilted === next.tilted &&
+      applied.topDown === next.topDown &&
       applied.heading === next.heading
     )
       return;
@@ -320,6 +339,8 @@ export function bindCameraOrientationControls({
           : t('Tilt map to oblique view'),
       );
     }
+    if (!applied || applied.topDown !== next.topDown)
+      tiltButton?.setAttribute('data-top-down', String(next.topDown));
     if (!applied || applied.heading !== next.heading) {
       northButton?.setAttribute('data-north-up', String(next.heading === 0));
       northButton?.style?.setProperty('--camera-heading', `${next.heading}deg`);
@@ -357,6 +378,8 @@ export function bindCameraOrientationControls({
       // The action reports the state it just commanded, so the button can
       // follow it without a second pick.
       tilted = result.tilted;
+      // The mobile 2D icon describes the actual view, not the pending angle.
+      topDown = !animator.destination && !result.tilted;
     }
     sync();
   });
@@ -387,11 +410,11 @@ export function bindCameraOrientationControls({
   // The exact tilt state is refreshed once per gesture, not once per frame —
   // moveEnd fires when the camera stops, which is where the pick is affordable.
   subscribe(viewer?.camera?.moveEnd, refreshTilt);
-  subscribe(viewer?.trackedEntityChanged, animator.cancel);
+  subscribe(viewer?.trackedEntityChanged, cancel);
   for (const type of ['pointerdown', 'wheel']) {
     const canvas = viewer?.scene?.canvas;
-    canvas?.addEventListener?.(type, animator.cancel, { passive: true });
-    removers.push(() => canvas?.removeEventListener?.(type, animator.cancel));
+    canvas?.addEventListener?.(type, cancel, { passive: true });
+    removers.push(() => canvas?.removeEventListener?.(type, cancel));
   }
   refreshTilt();
 
@@ -408,7 +431,7 @@ export function bindCameraOrientationControls({
         return animator.zoom(distance, reduced ? 0 : 280);
       });
     },
-    cancel: animator.cancel,
+    cancel,
     destroy() {
       if (destroyed) return;
       destroyed = true;

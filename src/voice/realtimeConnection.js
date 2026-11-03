@@ -51,7 +51,7 @@ export class RealtimeConnection {
   get status() {
     return this.readStatus();
   }
-  async start({ pushToTalk = false } = {}) {
+  async start({ pushToTalk = false, microphoneEnabled = true } = {}) {
     if (this.isActive() || this.lifetimeSignal?.aborted) return;
     this.pauseRadioForVoice();
     const pushToTalkKeyHeld = pushToTalk && this.input.pushToTalkKeyHeld;
@@ -128,7 +128,7 @@ export class RealtimeConnection {
       if (this.abandonStart(epoch, { localStream, localPc })) return;
       this.stream = localStream;
       this.setMicrophoneEnabled(
-        !this.input.pushToTalkMode || this.input.pushToTalkKeyHeld,
+        microphoneEnabled && (!this.input.pushToTalkMode || this.input.pushToTalkKeyHeld),
       );
       this.startVoiceVisualizer(localStream);
 

@@ -439,7 +439,7 @@ body.recording-mode .gev-pointer-reticle {
 }
 .gev-voice-panel-title {
   color: var(--voice-panel-accent, var(--accent));
-  font: 600 0.65rem/1 var(--font-mono);
+  font: 500 0.65rem/1 var(--font-mono);
   letter-spacing: 0.14em;
 }
 .gev-voice-panel-tabs {

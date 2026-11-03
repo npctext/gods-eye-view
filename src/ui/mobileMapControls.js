@@ -1,4 +1,5 @@
 import { t } from '../i18n/index.js';
+import { initMobileVoice } from './mobileVoice.js';
 
 const OPTIONS = [
   ['zoom', 'Zoom controls'],
@@ -23,7 +24,7 @@ export function mapControlVisibility(top, height, boundary) {
   return clamp((top + height - boundary) / height);
 }
 
-export function initMobileMapControls({ documentRef, openSearch, openSettings, onMapTool, zoom, locate, onMapInteraction }) {
+export function initMobileMapControls({ documentRef, openSearch, openSettings, onVoiceOpen, onMapTool, zoom, locate, onMapInteraction }) {
   const win = documentRef.defaultView;
   if (!win?.requestAnimationFrame) return null;
   const body = documentRef.body;
@@ -326,7 +327,7 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
       for (const node of nodes) {
         node.disabled = key === 'location' ? locating : !source || source.disabled;
         if (key === 'location') node.setAttribute('aria-busy', String(locating));
-        if (key === 'tilt') node.setAttribute('aria-pressed', source?.getAttribute('aria-pressed') || 'false');
+        if (key === 'tilt') node.setAttribute('aria-pressed', source?.getAttribute('data-top-down') || 'false');
       }
     }
     north.style.setProperty('--camera-heading', sources.north?.style.getPropertyValue('--camera-heading') || '0deg');
@@ -342,10 +343,15 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
       const rect = node.getBoundingClientRect();
       if (rect.height > 0) panelTop = Math.min(panelTop, rect.top);
     }
-    const player = element('mobile-scene-player');
     let restingBottom = tabTop;
-    if (player?.classList.contains('is-visible') && win.getComputedStyle(player).visibility !== 'hidden')
-      restingBottom = Math.min(restingBottom, player.getBoundingClientRect().top);
+    for (const id of ['mobile-scene-player', 'mobile-voice-panel']) {
+      const player = element(id);
+      if (player?.classList.contains('is-visible') && win.getComputedStyle(player).visibility !== 'hidden') {
+        const rect = player.getBoundingClientRect();
+        const height = id === 'mobile-voice-panel' ? parseFloat(body.style.getPropertyValue('--mobile-voice-height')) || rect.height : rect.height;
+        restingBottom = Math.min(restingBottom, rect.bottom - height);
+      }
+    }
     if (!body.hasAttribute('data-mobile-sheet-peek') || body.hasAttribute('data-mobile-sheet-peek-dragging') ||
         heldLayout?.width !== win.innerWidth || heldLayout?.height !== win.innerHeight ||
         heldLayout?.toolbarHeight !== toolbar.offsetHeight) heldLayout = null;
@@ -396,18 +402,18 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
   const observer = new win.MutationObserver((records) => {
     // Scene controls mount after the shell; observe visibility, not progress ticks.
     for (const record of records) for (const node of record.addedNodes) {
-      if (node.id !== 'mobile-scene-player') continue;
+      if (!['mobile-scene-player', 'mobile-voice-panel'].includes(node.id)) continue;
       observer.observe(node, { attributes: true, attributeFilter: ['class'] });
       resize.observe(node);
     }
     wake();
   });
-  observer.observe(body, { childList: true, attributes: true, attributeFilter: ['class', 'data-mobile-sheet', 'data-mobile-details', 'data-mobile-search-open', 'data-mobile-map-menu', 'data-mobile-scenes-expanded', 'data-mobile-layers-expanded', 'data-mobile-scenes-lowered', 'data-mobile-sheet-peek', 'data-mobile-sheet-peek-dragging'] });
+  observer.observe(body, { childList: true, attributes: true, attributeFilter: ['class', 'data-mobile-sheet', 'data-mobile-details', 'data-mobile-search-open', 'data-mobile-map-menu', 'data-mobile-scenes-expanded', 'data-mobile-layers-expanded', 'data-mobile-scenes-lowered', 'data-mobile-sheet-peek', 'data-mobile-sheet-peek-dragging', 'data-mobile-voice', 'data-mobile-voice-visible'] });
   observer.observe(documentRef.documentElement, { attributes: true, attributeFilter: ['data-tab-transition', 'data-scene-transition'] });
   const player = element('mobile-scene-player');
   if (player) observer.observe(player, { attributes: true, attributeFilter: ['class'] });
   for (const node of [...sheetNodes, ...Object.values(sources)].filter(Boolean))
-    observer.observe(node, { attributes: true, attributeFilter: ['style', 'class', 'aria-pressed', 'disabled'] });
+    observer.observe(node, { attributes: true, attributeFilter: ['style', 'class', 'aria-pressed', 'data-top-down', 'disabled'] });
   const resize = new win.ResizeObserver(wake);
   for (const node of [...sheetNodes, player, menu, header, toolbar, element('mobile-status-stack')].filter(Boolean)) resize.observe(node);
   listen(win, 'resize', wake);
@@ -436,6 +442,8 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     if (event.key !== 'Escape' || event.defaultPrevented) return;
     if (body.hasAttribute('data-mobile-map-menu')) { event.preventDefault(); closeMenu(); more.focus(); }
   });
+  listen(documentRef, 'gev:mobile-voice-layout', wake);
+  const voice = initMobileVoice({ documentRef, trigger: mic, onReveal: () => { closeMenu(); onVoiceOpen?.(); } });
   renderPins();
   closeMenu();
   return {
@@ -457,6 +465,7 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
       }
     },
     destroy() {
+      voice?.destroy();
       this.setMobile(false);
       disposed = true;
       observer.disconnect(); resize.disconnect();

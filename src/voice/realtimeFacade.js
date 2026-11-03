@@ -424,6 +424,10 @@ export class RealtimeFacade {
     return this._turns.notifyMapEvent(...args);
   }
 
+  bargeIn(...args) {
+    return this._turns.bargeIn(...args);
+  }
+
   sendTextCommand(...args) {
     return this._turns.sendTextCommand(...args);
   }

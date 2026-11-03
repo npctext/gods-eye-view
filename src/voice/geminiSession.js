@@ -617,7 +617,7 @@ export class GeminiSessionController {
     }
   }
 
-  async start({ pushToTalk = false } = {}) {
+  async start({ pushToTalk = false, microphoneEnabled = true } = {}) {
     if (this.disposed || this.isActive() || this.signal?.aborted) return;
     const held = pushToTalk && this.input.pushToTalkKeyHeld;
     const spaceHeld = this.input.spaceKeyHeld;
@@ -834,7 +834,7 @@ export class GeminiSessionController {
       if (!this.owns(epoch)) return;
       signal.throwIfAborted();
       const enabled =
-        !this.input.pushToTalkMode || this.input.pushToTalkKeyHeld;
+        microphoneEnabled && (!this.input.pushToTalkMode || this.input.pushToTalkKeyHeld);
       this.input.setMicrophoneEnabled(enabled);
       audio.connectMicrophone(
         acquiredStream,
@@ -2547,7 +2547,10 @@ export function createGeminiSession(options) {
     start: (settings) => controller.start(settings),
     getStartOptions: () => ({
       pushToTalk: Boolean(controller.input.pushToTalkMode),
+      ...(!controller.input.pushToTalkMode && controller.ui?.root?.dataset.microphone === 'muted' ? { microphoneEnabled: false } : {}),
     }),
+    setMicrophoneEnabled(enabled) { controller.input.setMicrophoneEnabled(enabled); return true; },
+    interrupt: () => controller.bargeIn(),
     stop: (settings) => controller.stop(settings),
     sendText: (text) => controller.sendTextCommand(text),
     sendMapEvent: (event) => controller.notifyMapEvent(event),

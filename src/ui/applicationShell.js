@@ -896,6 +896,8 @@ export class StyleManager extends ShellFacade {
       onMapZoom: (direction) => this._cameraOrientationControls?.zoom(direction),
       onMapLocation: () => this._locateMobileMap(),
       onLanguageSelect: (locale) => this._chooseLocale(locale),
+      onCctvCoverageChange: (mode) => this._cctvControls?.setCoverageMode(mode),
+      onCctvRetryFrame: () => this._cctvControls?.retryFrame(),
       onTabOpened: (sheet) => {
         void this._onMobileTabOpened(sheet);
       },

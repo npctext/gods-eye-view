@@ -4,7 +4,7 @@
   min-width: 0;
   background: var(--gev-field-background, rgba(255, 255, 255, 0.06));
   border: 1px solid var(--gev-field-border-color, rgba(255, 255, 255, 0.14));
-  border-radius: 7px;
+  border-radius: var(--radius-control, 7px);
   color: var(--gev-field-color, var(--text-primary));
   padding: 6px 8px;
   font-family: var(--font-sans);
@@ -23,7 +23,7 @@
 
 .gev-field--compact {
   height: 24px;
-  border-radius: 6px;
+  border-radius: var(--radius-control, 6px);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.6px;
@@ -38,7 +38,7 @@
   letter-spacing: 0.7px;
   --gev-field-background: rgba(0, 212, 255, 0.1);
   --gev-field-border-color: rgba(0, 212, 255, 0.5);
-  border-radius: 4px;
+  border-radius: var(--radius-control, 4px);
   padding: 1px 3px;
   -moz-appearance: textfield;
 }

@@ -278,6 +278,7 @@ export class ShellFeedback {
         presentation.label === 'LOAD COMPLETE'
         ? t('LIVE DATA UPDATED')
         : localized.label,
+      { immediate: document.body?.classList?.contains?.('mobile-shell') && ['error', 'retry', 'cancelled'].includes(presentation.state) },
     );
     this._globalLoadingDetail.textContent = localized.detail ||
       (presentation.state === 'complete' ? t('Live data updated · just now') :

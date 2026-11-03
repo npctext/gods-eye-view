@@ -1,4 +1,5 @@
 import { t } from '../i18n/index.js';
+import { disposeSplitFlap } from '../splitFlap.js';
 
 const time = (seconds) => {
   const value = Math.max(0, Math.floor(seconds || 0));
@@ -65,6 +66,7 @@ export function mountMobileScenePlayer(player, documentRef = globalThis.document
   };
   const draw = (state) => {
     snapshot = state;
+    if (root.dataset.state !== state.status) root.dataset.state = state.status;
     root.classList.toggle('is-visible', state.visible);
     root.inert = !state.visible;
     root.setAttribute('aria-hidden', String(!state.visible));
@@ -80,8 +82,13 @@ export function mountMobileScenePlayer(player, documentRef = globalThis.document
     toggle.setAttribute('aria-label', t(playing ? 'Pause' : state.status === 'ended' ? 'Replay' : 'Play'));
     toggle.querySelector('img').hidden = !playing;
     toggle.querySelector('span').hidden = playing;
-    title.textContent = state.status === 'error' ? t('Unable to play. Try again.')
+    const heading = state.status === 'error' ? t('Unable to play. Try again.')
       : busy ? t('Loading…') : state.shots[state.index]?.title || state.title || '';
+    if (title.textContent !== heading) {
+      disposeSplitFlap(title);
+      title.textContent = heading;
+    }
+    if (!state.visible || state.status === 'error') disposeSplitFlap(title);
     title.title = title.textContent;
     count.textContent = `${String(state.index + 1).padStart(2, '0')} / ${String(state.shots.length).padStart(2, '0')}`;
     if (!dragging) drawProgress(state.progress);
@@ -132,10 +139,12 @@ export function mountMobileScenePlayer(player, documentRef = globalThis.document
   };
   const onKey = (event) => {
     if (!event.defaultPrevented && event.key === 'Escape' && snapshot.visible &&
-        !documentRef.body.matches('[data-mobile-sheet], [data-mobile-search-open], [data-mobile-details]') &&
+        !documentRef.body.matches('[data-mobile-sheet], [data-mobile-search-open], [data-mobile-details], [data-mobile-voice]') &&
         !documentRef.querySelector('dialog[open]')) player.close();
   };
   const onVisibility = () => { if (documentRef.hidden) player.pause(); };
+  const onVoiceStart = () => player.pause();
+  documentRef.addEventListener('gev:mobile-voice-start', onVoiceStart);
   documentRef.addEventListener('keydown', onKey);
   documentRef.addEventListener('visibilitychange', onVisibility);
   const interactions = ['pointerdown', 'click', 'wheel', 'keydown'];
@@ -144,6 +153,8 @@ export function mountMobileScenePlayer(player, documentRef = globalThis.document
   const unsubscribe = player.subscribe(draw);
   return { destroy() {
     unsubscribe();
+    disposeSplitFlap(title);
+    documentRef.removeEventListener('gev:mobile-voice-start', onVoiceStart);
     documentRef.removeEventListener('keydown', onKey);
     documentRef.removeEventListener('visibilitychange', onVisibility);
     for (const event of interactions) documentRef.removeEventListener(event, onInteraction, true);

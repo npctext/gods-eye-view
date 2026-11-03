@@ -19,7 +19,7 @@
   --menu-bg: #12121c;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
   --font-plex-mono: 'IBM Plex Mono', monospace;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
   --panel-radius: 16px;
   --btn-radius: 10px;
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -32,6 +32,16 @@
   --display-panel-expanded-width: 272px;
   --cockpit-radio-collapsed-width: 148px;
   --cockpit-radio-expanded-width: 232px;
+}
+
+/* Tactical geometry; other HUD layouts retain their existing radii. */
+:root:has(#intel-hud[data-variant='tactical']) {
+  --radius-surface: 6px;
+  --radius-control: 5px;
+  --radius-detail: 4px;
+  --radius-control-inset: max(0px, calc(var(--radius-control) - 2px));
+  --panel-radius: var(--radius-surface);
+  --btn-radius: var(--radius-control);
 }
 
 * {

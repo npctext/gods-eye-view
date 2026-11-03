@@ -187,6 +187,7 @@ export function _syncCctvCalReadout(enabled, activeCamera) {
   if (this._cctvAdjustBtn) {
     const adjustOn = !!this._cctvState?.calibrationMode;
     this._cctvAdjustBtn.classList.toggle('active', adjustOn && canCalibrate);
+    this._cctvAdjustBtn.setAttribute('aria-pressed', String(adjustOn && canCalibrate));
     this._cctvAdjustBtn.textContent = adjustOn ? t('ADJUST ON') : t('ADJUST');
     this._cctvAdjustBtn.disabled = !canCalibrate;
   }

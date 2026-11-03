@@ -9,7 +9,7 @@
   box-sizing: border-box;
   padding: 4px 8px;
   border: 1px solid var(--status-badge-border, rgba(0, 212, 255, 0.32));
-  border-radius: 999px;
+  border-radius: var(--radius-detail, 999px);
   background: var(--status-badge-background, rgba(0, 212, 255, 0.09));
   color: var(--status-badge-color, #9defff);
   font-family: var(--font-mono);
@@ -20,7 +20,7 @@
 
 .gev-status-badge--box {
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-detail, 8px);
   font-size: 9px;
   letter-spacing: 1px;
   text-transform: uppercase;
