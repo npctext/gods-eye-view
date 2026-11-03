@@ -12,14 +12,17 @@
   --mobile-sheet-shadow: 0 -16px 32px hsla(207, 44.827586%, 5.686275%, 0.48);
   --mobile-sheet-divider-color: hsla(204, 40%, 21.76%, 1);
   --mobile-sheet-handle-color: var(--mobile-sheet-border-color);
-  --mobile-map-bg: hsla(205, 43%, 9%, 0.95);
+  --mobile-map-bg: hsla(210, 43.478261%, 9.019608%, 0.9);
+  --mobile-map-button-border: linear-gradient(180deg, hsla(200, 50%, 20%, 1) 0%, hsla(200, 50%, 10%, 1) 25%, hsla(200, 50%, 10%, 1) 75%, hsla(200, 50%, 23%, 1) 100%);
+  --mobile-map-button-shadow: inset 0 -3px 2px hsla(200, 100%, 69.215686%, 0.08);
+  --mobile-map-button-blur: 4px;
   --mobile-map-panel-bg: hsla(210, 43.478261%, 9.019608%, 0.98);
   --mobile-map-border: hsla(194, 100%, 30%, 1);
-  --mobile-map-panel-border: hsla(194, 70%, 24%, 1);
+  --mobile-map-panel-border: hsla(200, 70%, 24%, 1);
   --mobile-map-panel-radius: 12px;
   --mobile-map-text: hsla(201.176471, 32.075472%, 89.607843%, 1);
   --mobile-map-muted: hsla(205.384615, 17.567568%, 70.980392%, 1);
-  --mobile-map-selected: hsla(194, 48.235294%, 16.666667%, 1);
+  --mobile-map-selected: hsla(200, 48%, 15%, 1);
   --mobile-map-accent: hsla(194, 100%, 69.215686%, 1);
   --mobile-header-bg: hsla(205, 43%, 9%, 0.95);
   --mobile-header-border: hsla(194, 50.326797%, 30%, 1);
@@ -30,13 +33,13 @@
   --search-open-bg: hsla(205, 43%, 4%, 0.95);
   --search-border: hsla(194, 50.326797%, 30%, 1);
   --search-text: hsla(205.384615, 17.567568%, 70.980392%, 1);
-  --search-mic-color: var(--search-text);
+  --search-mic-color: var(--icon-color);
   --search-mic-glow: hsla(0, 0%, 0%, 0);
   --mobile-sheet-control-size: 28px;
   --mobile-sheet-back-icon-size: 16px;
   --mobile-sheet-close-icon-size: 18px;
   --mobile-sheet-edge-inset: 16px;
-  --mobile-sheet-control-color: hsla(205.384615, 17.567568%, 70.980392%, 1);
+  --mobile-sheet-control-color: var(--icon-color);
   --mobile-sheet-control-pressed-bg: hsla(196.097561, 48.235294%, 16.666667%, 1);
   --mobile-sheet-control-pressed-border: hsla(194, 50.326797%, 30%, 1);
   --mobile-tab-height: 74px;
@@ -45,18 +48,25 @@
   --mobile-tab-space: calc(
     var(--mobile-tab-height) + var(--mobile-bottom-inset)
   );
-  --mobile-sheet-max-height: calc(100vh - var(--mobile-tab-space) - var(--mobile-sheet-expanded-top));
   --mobile-dock-sheet-max-height: 34vh;
   --mobile-rail-under-dock-max-height: 40vh;
+}
+
+/* Resolve the loading reservation on body, where the controller updates it. */
+body.mobile-shell {
+  --mobile-sheet-available-top: max(var(--mobile-sheet-expanded-top), var(--mobile-loading-clearance-top, 0px));
+  --mobile-sheet-max-height: calc(100vh - var(--mobile-tab-space) - var(--mobile-sheet-available-top));
 }
 
 /* Dynamic viewport units keep sheets inside the area a mobile browser's
    toolbars leave visible. */
 @supports (height: 1dvh) {
   :root {
-    --mobile-sheet-max-height: calc(100dvh - var(--mobile-tab-space) - var(--mobile-sheet-expanded-top));
     --mobile-dock-sheet-max-height: 34dvh;
     --mobile-rail-under-dock-max-height: 40dvh;
+  }
+  body.mobile-shell {
+    --mobile-sheet-max-height: calc(100dvh - var(--mobile-tab-space) - var(--mobile-sheet-available-top));
   }
 }
 
@@ -145,7 +155,7 @@ body.mobile-shell .mobile-tab {
   min-width: 0;
   height: 62px;
   padding: 0;
-  color: hsla(205.384615, 17.567568%, 70.980392%, 1);
+  color: var(--icon-color);
   background: none;
   border: 0;
   border-radius: 10px;
@@ -174,7 +184,7 @@ body.mobile-shell .mobile-tab-icon {
 }
 
 body.mobile-shell .mobile-tab:not([aria-expanded='true']) .mobile-tab-icon {
-  color: hsla(205.384615, 17.567568%, 70.980392%, 1);
+  color: var(--icon-color);
 }
 
 body.mobile-shell .mobile-tab:not([data-mobile-sheet='more']) .mobile-tab-icon {
@@ -777,7 +787,7 @@ body.mobile-shell #title-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  top: calc(var(--mobile-top-inset) + 6px);
+  top: calc(var(--mobile-top-inset) + 10px);
   left: 14px;
   right: 14px;
   height: 36px;
@@ -912,7 +922,7 @@ body.mobile-shell[data-mobile-sheet='more'] #right-context-rail {
   overscroll-behavior: contain;
   pointer-events: auto;
   translate: 0 var(--mobile-sheet-peek-offset, 0px);
-  transition: translate var(--mobile-sheet-animation-duration) ease;
+  transition: max-height var(--mobile-sheet-animation-duration) ease, translate var(--mobile-sheet-animation-duration) ease;
   transform: none;
 }
 
@@ -1008,7 +1018,7 @@ body.mobile-shell[data-mobile-sheet='scenes'] #left-panel-stack {
   height: 45dvh;
   max-height: var(--mobile-sheet-max-height);
   padding: 0;
-  transition: height var(--mobile-sheet-animation-duration) ease, transform var(--mobile-sheet-animation-duration) ease, translate var(--mobile-sheet-animation-duration) ease;
+  transition: max-height var(--mobile-sheet-animation-duration) ease, height var(--mobile-sheet-animation-duration) ease, transform var(--mobile-sheet-animation-duration) ease, translate var(--mobile-sheet-animation-duration) ease;
 }
 
 body.mobile-shell[data-mobile-sheet='scenes'][data-mobile-scenes-expanded] #left-panel-stack {
@@ -1427,7 +1437,7 @@ body.mobile-shell #scene-panel:is([data-mobile-scene-view='menu'], [data-mobile-
   width: 44px;
   padding: 0;
   text-align: center;
-  color: hsla(205.384615, 17.567568%, 70.980392%, 1);
+  color: var(--icon-color);
   background: none;
   border: 0;
 }
@@ -1938,7 +1948,7 @@ body.mobile-shell[data-mobile-sheet='layers'] #left-panel-stack {
   padding: 0;
   gap: 0;
   overflow: hidden;
-  transition: height var(--mobile-sheet-animation-duration) ease, bottom var(--mobile-sheet-animation-duration) ease, transform var(--mobile-sheet-animation-duration) ease, translate var(--mobile-sheet-animation-duration) ease;
+  transition: max-height var(--mobile-sheet-animation-duration) ease, height var(--mobile-sheet-animation-duration) ease, bottom var(--mobile-sheet-animation-duration) ease, transform var(--mobile-sheet-animation-duration) ease, translate var(--mobile-sheet-animation-duration) ease;
 }
 
 body.mobile-shell[data-mobile-sheet='layers'][data-mobile-layers-expanded] #left-panel-stack {
@@ -2007,7 +2017,8 @@ body.mobile-shell[data-mobile-sheet='layers'] #mobile-layers-filter button {
   background: hsla(205.384615, 52%, 9.803922%, 1);
   border: 1px solid hsla(201.428571, 42.424242%, 25.882353%, 1);
   color: hsla(205.384615, 17.567568%, 70.980392%, 1);
-  font: 600 12px/normal var(--font-plex-mono);
+  font: 500 12px/normal var(--font-plex-mono);
+  text-transform: uppercase;
 }
 
 body.mobile-shell[data-mobile-sheet='layers'] #mobile-layers-all {
@@ -2114,8 +2125,9 @@ body.mobile-shell[data-mobile-sheet='layers'] .data-toggle-row {
   grid-template-columns: 34px minmax(0, 1fr) auto;
   grid-template-rows: auto auto minmax(0, 0fr);
   column-gap: 12px;
+  align-content: start;
   min-height: 60px;
-  padding: 8px 16px;
+  padding: 12.5px 16px;
   border-bottom: 1px solid hsla(208.695652, 40.350877%, 11.176471%, 1);
   border-radius: 0;
   background: hsla(0, 0%, 0%, 0);
@@ -2138,6 +2150,7 @@ body.mobile-shell[data-mobile-sheet='layers'] .data-toggle-left {
 body.mobile-shell[data-mobile-sheet='layers'] .data-icon {
   grid-column: 1;
   grid-row: 1 / 3;
+  align-self: center;
   box-sizing: border-box;
   display: grid;
   place-items: center;
@@ -2156,6 +2169,7 @@ body.mobile-shell[data-mobile-sheet='layers'] .data-toggle-row:has(.data-toggle-
 body.mobile-shell[data-mobile-sheet='layers'] .data-name {
   grid-column: 2;
   grid-row: 1;
+  align-self: end;
   min-width: 0;
   color: hsla(200, 33.333333%, 94.705882%, 1);
   font: 500 13px/16px var(--font-sans);
@@ -2165,8 +2179,9 @@ body.mobile-shell[data-mobile-sheet='layers'] .data-name {
 body.mobile-shell[data-mobile-sheet='layers'] .data-toggle-meta {
   grid-column: 2;
   grid-row: 2;
+  align-self: start;
   min-width: 0;
-  margin: 0 0 0;
+  margin: 2px 0 0;
   padding: 0;
   color: hsla(200, 22.613065%, 39.019608%, 1);
   font: 400 10px/14px var(--font-plex-mono);
@@ -2362,30 +2377,34 @@ body.mobile-shell:is([data-mobile-sheet], [data-mobile-search-open], [data-mobil
 }
 body.mobile-shell #title-bar {
   right: auto;
-  left: 16px;
-  width: 107px;
+  left: 12px;
+  box-sizing: border-box;
+  width: 122px;
   height: 44px;
+  padding: 0 10px 0 6px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--mobile-map-bg);
   justify-content: flex-start;
   transform: scale(calc(0.65 + 0.35 * var(--map-control-visibility, 1)));
   opacity: var(--map-control-visibility, 1);
   transform-origin: left center;
 }
-body.mobile-shell #title-bar::after { display: none; }
 body.mobile-shell #mobile-header-actions {
   display: flex;
   position: fixed;
-  top: calc(var(--mobile-top-inset) + 6px);
-  right: 16px;
+  top: calc(var(--mobile-top-inset) + 10px);
+  right: 12px;
   z-index: 178;
 }
 body.mobile-shell #mobile-header-actions .mobile-header-group {
+  position: relative;
   display: flex;
   box-sizing: border-box;
   width: 135px;
   height: 44px;
   overflow: hidden;
-  border: 1px solid var(--mobile-map-panel-border);
-  border: none;
+  border: 0;
   border-radius: 10px;
   background: var(--mobile-map-bg);
 }
@@ -2400,7 +2419,7 @@ body.mobile-shell #mobile-header-actions .mobile-map-button {
   border-radius: 0;
   background: none;
 }
-body.mobile-shell #mobile-header-actions .mobile-map-button + .mobile-map-button::before {
+body.mobile-shell #mobile-header-actions .mobile-map-button + .mobile-map-button::after {
   content: '';
   position: absolute;
   top: 50%;
@@ -2413,7 +2432,6 @@ body.mobile-shell #mobile-header-actions .mobile-map-button + .mobile-map-button
   pointer-events: none;
 }
 body.mobile-shell #mobile-header-actions .mobile-header-settings { cursor: default; }
-body.mobile-shell #mobile-header-actions .mobile-map-button:is(:active, [data-map-press]) { background: var(--mobile-map-selected); }
 body.mobile-shell #mobile-search-bar::before {
   content: '';
   position: absolute;
@@ -2432,7 +2450,7 @@ body.mobile-shell #top-center-actions > :is(#north-up-view, #tilt-map-view, #res
 body.mobile-shell #mobile-map-controls {
   display: flex;
   position: fixed;
-  right: 16px;
+  right: 12px;
   top: calc(100dvh - var(--mobile-tab-space) - 172px);
   flex-direction: column;
   align-items: flex-end;
@@ -2457,6 +2475,7 @@ body.mobile-shell #mobile-map-controls {
 }
 .mobile-map-slot[inert] { pointer-events: none; }
 body.mobile-shell .mobile-map-button, body.mobile-shell .mobile-map-zoom {
+  position: relative;
   display: flex;
   box-sizing: border-box;
   align-items: center;
@@ -2465,17 +2484,51 @@ body.mobile-shell .mobile-map-button, body.mobile-shell .mobile-map-zoom {
   min-width: 44px;
   height: 44px;
   padding: 0;
-  border: 1px solid var(--mobile-map-panel-border);
-  border: none;
+  border: 0;
   border-radius: 10px;
   background: var(--mobile-map-bg);
-  color: var(--mobile-map-text);
+  color: var(--icon-color);
   box-shadow: none;
   pointer-events: auto;
   -webkit-tap-highlight-color: hsla(0, 0%, 0%, 0);
 }
-body.mobile-shell :is(.mobile-map-button, .mobile-map-zoom-button) { transition: background-color 140ms ease-out; touch-action: manipulation; -webkit-tap-highlight-color: hsla(0, 0%, 0%, 0); }
-body.mobile-shell :is(.mobile-map-button, .mobile-map-zoom-button):is(:active, [data-map-press]):not(:disabled) { background-color: var(--mobile-map-selected); transition-duration: 70ms; }
+/* Figma 181:2000: translucent surface and an inset gradient outline. */
+body.mobile-shell :is(#title-bar, #mobile-map-controls .mobile-map-button, #mobile-map-controls .mobile-map-zoom, #mobile-header-actions .mobile-header-group) {
+  box-shadow: var(--mobile-map-button-shadow);
+  /*-webkit-backdrop-filter: blur(var(--mobile-map-button-blur));
+  backdrop-filter: blur(var(--mobile-map-button-blur));*/
+}
+body.mobile-shell #mobile-map-controls :is(.mobile-map-button, .mobile-map-zoom) {
+  box-shadow: var(--mobile-map-button-shadow), 0 2px 6px hsla(0, 0%, 0%, 0.12);
+}
+body.mobile-shell :is(#title-bar, #mobile-map-controls .mobile-map-button, #mobile-map-controls .mobile-map-zoom, #mobile-header-actions .mobile-header-group)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--mobile-map-button-border);
+  -webkit-mask: linear-gradient(hsla(0, 0%, 100%, 1) 0 0) content-box, linear-gradient(hsla(0, 0%, 100%, 1) 0 0);
+  mask: linear-gradient(hsla(0, 0%, 100%, 1) 0 0) content-box, linear-gradient(hsla(0, 0%, 100%, 1) 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+body.mobile-shell :is(.mobile-map-button, .mobile-map-zoom-button) { touch-action: manipulation; -webkit-tap-highlight-color: hsla(0, 0%, 0%, 0); }
+/* Keep tap feedback inside the outline, including grouped header/zoom buttons. */
+body.mobile-shell :is(.mobile-map-button, .mobile-map-zoom-button)::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 8px;
+  background: var(--mobile-map-selected);
+  opacity: 0;
+  transition: opacity 220ms ease-out;
+  pointer-events: none;
+}
+body.mobile-shell :is(.mobile-map-button, .mobile-map-zoom-button):is(:active, [data-map-press]):not(:disabled)::before { opacity: 1; transition-duration: 90ms; }
+body.mobile-shell :is(.mobile-map-button, .mobile-map-zoom-button) > .mobile-map-icon { position: relative; z-index: 1; }
 .mobile-map-button:disabled { opacity: 0.5; }
 .mobile-map-icon { display: block; flex: none; }
 /* Individual map icon sizes; button hit areas stay unchanged. */
@@ -2487,7 +2540,7 @@ body.mobile-shell :is(.mobile-map-button, .mobile-map-zoom-button):is(:active, [
 .mobile-map-globe-icon { width: 22px; height: 22px; }
 .mobile-map-share-icon { width: 24px; height: 24px; }
 .mobile-map-zoom-icon { width: 20px; height: 20px; }
-.mobile-map-zoom-in-icon { width: 32px; height: 32px; font-size: 32px; line-height: 1; }
+.mobile-map-zoom-in-icon { width: 32px; height: 32px; font-size: 32px; line-height: 0.9; }
 .mobile-map-zoom-out-icon { width: 32px; height: 32px; font-size: 32px; line-height: 1; }
 .mobile-map-more-icon { width: 20px; height: 20px; }
 .mobile-map-tilt-icon { width: 23px; height: 19px; }
@@ -2496,9 +2549,9 @@ body.mobile-shell :is(.mobile-map-button, .mobile-map-zoom-button):is(:active, [
 .mobile-map-import-icon { width: 20px; height: 20px; font-size: 20px; }
 .mobile-map-clean-icon { width: 20px; height: 20px; }
 
-.mobile-map-more-icon { background: hsla(205.384615, 17.567568%, 70.980392%, 1); -webkit-mask: url('/icons/mobile-map/more.svg') center/contain no-repeat; mask: url('/icons/mobile-map/more.svg') center/contain no-repeat; }
+.mobile-map-more-icon { background: var(--icon-color); -webkit-mask: url('/icons/mobile-map/more.svg') center/contain no-repeat; mask: url('/icons/mobile-map/more.svg') center/contain no-repeat; }
 .mobile-map-button[aria-expanded='true'] .mobile-map-more-icon { background: var(--mobile-map-accent); }
-.mobile-map-tilt-icon { background: var(--mobile-map-muted); -webkit-mask: url('/icons/mobile-map/tilt.svg') center/contain no-repeat; mask: url('/icons/mobile-map/tilt.svg') center/contain no-repeat; }
+.mobile-map-tilt-icon { background: var(--icon-color); -webkit-mask: url('/icons/mobile-map/tilt.svg') center/contain no-repeat; mask: url('/icons/mobile-map/tilt.svg') center/contain no-repeat; }
 :is(.mobile-map-button, .mobile-map-menu-row)[aria-pressed='true'] .mobile-map-tilt-icon { background: var(--mobile-map-accent); }
 #mobile-header-actions .mobile-map-icon {
   pointer-events: none;
@@ -2523,9 +2576,9 @@ body.mobile-shell .mobile-map-north[data-north-hidden] { opacity: 0; visibility:
 @media (prefers-reduced-motion: reduce) { body.mobile-shell .mobile-map-north { transition: none; } }
 .mobile-map-north img { transform: rotate(calc(-1 * var(--camera-heading, 0deg))); }
 body.mobile-shell .mobile-map-zoom { flex-direction: column; height: 90px; overflow: hidden; }
-body.mobile-shell .mobile-map-zoom-button { display: grid; place-items: center; flex: none; box-sizing: border-box; width: 100%; height: 44px; padding: 0; border: 0; background: none; box-shadow: none; color: var(--mobile-map-muted); font: 300 24px/1 var(--font-sans); }
+body.mobile-shell .mobile-map-zoom-button { position: relative; display: grid; place-items: center; flex: none; box-sizing: border-box; width: 100%; height: 44px; padding: 0; border: 0; background: none; box-shadow: none; color: var(--icon-color); font: 300 24px/1 var(--font-sans); }
 body.mobile-shell .mobile-map-zoom-button + button { position: relative; border-top: 0; padding: 1px 0 4px; }
-body.mobile-shell .mobile-map-zoom-button + button::before {
+body.mobile-shell .mobile-map-zoom-button + button::after {
   content: '';
   position: absolute;
   top: 0;
@@ -2606,7 +2659,7 @@ body.mobile-shell[data-mobile-map-menu] #mobile-map-menu {
 #mobile-map-menu .mobile-map-menu-row > .mobile-map-icon { justify-self: center; }
 .mobile-map-menu-row:active { background: hsla(0, 0%, 0%, 0); }
 .mobile-map-menu-row:disabled { opacity: 0.45; cursor: default; }
-.mobile-map-pin { display: flex; align-items: center; justify-content: center; flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: hsla(0, 0%, 0%, 0); color: var(--mobile-map-muted); cursor: pointer; -webkit-tap-highlight-color: hsla(0, 0%, 0%, 0); }
+.mobile-map-pin { display: flex; align-items: center; justify-content: center; flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: hsla(0, 0%, 0%, 0); color: var(--icon-color); cursor: pointer; -webkit-tap-highlight-color: hsla(0, 0%, 0%, 0); }
 .mobile-map-pin svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .mobile-map-pin[aria-pressed='true'] { color: var(--mobile-map-accent); }
 .mobile-map-pin[aria-pressed='true'] .mobile-map-pin-head { fill: currentColor; }
@@ -2622,6 +2675,7 @@ body.mobile-shell:is(.ui-clean-view, .recording-mode, .cockpit-mode) :is(#mobile
 @media (prefers-reduced-motion: reduce) {
   body.mobile-shell :is(#mobile-map-menu, #mobile-search-bar) { transition: none; }
   .mobile-map-row-ripple, body.mobile-shell :is(.mobile-map-button, .mobile-map-zoom-button) { transition: none; }
+  body.mobile-shell :is(.mobile-map-button, .mobile-map-zoom-button)::before { transition: none; }
   :root:is([data-tab-transition], [data-scene-transition]) body.mobile-shell #mobile-map-controls { transition: none; }
   .mobile-map-slot, .mobile-header-group, body.mobile-shell #title-bar { transform: none; }
 }
@@ -2697,14 +2751,14 @@ body.mobile-shell #mobile-settings:not([hidden]) {
   z-index: 183;
   inset: auto 0 0;
   box-sizing: border-box;
-  max-height: calc(100dvh - var(--mobile-sheet-expanded-top));
+  max-height: calc(100dvh - var(--mobile-sheet-available-top));
   width: 100%;
   color: var(--mobile-map-text);
   overflow: hidden;
   animation: mobile-settings-enter var(--mobile-sheet-animation-duration) ease;
-  transition: transform var(--mobile-sheet-animation-duration) ease, translate var(--mobile-sheet-animation-duration) ease;
+  transition: height var(--mobile-sheet-animation-duration) ease, max-height var(--mobile-sheet-animation-duration) ease, transform var(--mobile-sheet-animation-duration) ease, translate var(--mobile-sheet-animation-duration) ease;
 }
-body.mobile-shell #mobile-settings:not([data-category='draw']):not([data-category='import']) { height: calc(100dvh - var(--mobile-sheet-expanded-top)); }
+body.mobile-shell #mobile-settings:not([data-category='draw']):not([data-category='import']) { height: calc(100dvh - var(--mobile-sheet-available-top)); }
 #mobile-settings { --mobile-settings-page-duration: 180ms; }
 .mobile-settings-pages { display: flex; flex: 1; flex-direction: column; position: relative; min-height: 0; overflow: hidden; }
 .mobile-settings-page { display: flex; flex: 1; flex-direction: column; min-height: 0; }
@@ -2756,10 +2810,10 @@ body.mobile-shell #mobile-settings :is(.mobile-sheet-title, .mobile-settings-row
 }
 #mobile-settings .mobile-settings-row:last-child { border-bottom: 0; }
 .mobile-settings-label { flex: 1; }
-.mobile-settings-icon { display: flex; flex: none; width: 20px; height: 20px; color: hsla(199.090909, 20.37037%, 57.647059%, 1); }
+.mobile-settings-icon { display: flex; flex: none; width: 20px; height: 20px; color: var(--icon-color); }
 .mobile-settings-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .mobile-settings-value { font: 400 11px/16px var(--font-plex-mono); color: hsla(205.384615, 17.567568%, 70.980392%, 1); letter-spacing: 1.3px; padding-top: 4px; }
-.mobile-settings-chevron { font-size: 22px; color: hsla(199.090909, 20.37037%, 57.647059%, 1); }
+.mobile-settings-chevron { font-size: 22px; color: var(--icon-color); }
 #mobile-settings .mobile-settings-row.mobile-language-row { box-sizing: border-box; margin: 4px 0; padding: 8px; border: 1px solid hsla(0, 0%, 0%, 0); border-radius: 8px; }
 #mobile-settings .mobile-language-row[aria-pressed='true'] { border-color: hsla(190.12987, 50.326797%, 30%, 1); background: hsla(196.666667, 52.941176%, 13.333333%, 1); }
 .mobile-language-labels { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
@@ -2817,8 +2871,8 @@ body.mobile-shell #mobile-settings :is(.mobile-sheet-title, .mobile-settings-row
 body.mobile-shell #mobile-map-menu { max-height: calc(100dvh - 32px); overflow-y: auto; }
 .mobile-map-menu-tools { border-top: 1px solid hsla(203.225806, 31.958763%, 19.019608%, 1); padding: 4px 0; }
 body.mobile-shell:has(#mobile-settings[data-category='draw']) .mobile-settings-backdrop { pointer-events: none; }
-#mobile-map-menu .mobile-map-menu-tools .material-symbols-outlined { color: hsla(199.090909, 20.37037%, 57.647059%, 1); }
-#mobile-map-menu .mobile-map-menu-tools svg { flex: none; width: 100%; height: 100%; fill: none; stroke: hsla(199.090909, 20.37037%, 57.647059%, 1); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+#mobile-map-menu .mobile-map-menu-tools .material-symbols-outlined { color: var(--icon-color); }
+#mobile-map-menu .mobile-map-menu-tools svg { flex: none; width: 100%; height: 100%; fill: none; stroke: var(--icon-color); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 @media (prefers-reduced-motion: reduce) {
   body.mobile-shell #mobile-settings:not([hidden]) { animation: none; transition: none; }
 }

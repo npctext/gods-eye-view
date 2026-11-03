@@ -332,6 +332,7 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     north.style.setProperty('--camera-heading', sources.north?.style.getPropertyValue('--camera-heading') || '0deg');
     syncNorthVisibility();
     const headerRect = header.getBoundingClientRect();
+    const controlTop = Math.max(headerRect.bottom + 12, parseFloat(body.style.getPropertyValue('--mobile-loading-clearance-top')) || 0);
     const tabTop = element('mobile-tab-bar').getBoundingClientRect().top;
     let panelTop = tabTop;
     for (const node of sheetNodes) {
@@ -361,7 +362,7 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     for (const node of heldLayout ? [] : slots) {
       if (node.hidden) continue;
       const offset = node.parentElement === toolbar ? stackOffset : 0;
-      const amount = mapControlVisibility(visibleTop + node.offsetTop + offset, node.offsetHeight, headerRect.bottom + 12);
+      const amount = mapControlVisibility(visibleTop + node.offsetTop + offset, node.offsetHeight, controlTop);
       visual(node, amount);
     }
     const snapshotTransition = documentRef.documentElement.matches('[data-tab-transition], [data-scene-transition]');
@@ -408,7 +409,7 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
   for (const node of [...sheetNodes, ...Object.values(sources)].filter(Boolean))
     observer.observe(node, { attributes: true, attributeFilter: ['style', 'class', 'aria-pressed', 'disabled'] });
   const resize = new win.ResizeObserver(wake);
-  for (const node of [...sheetNodes, player, menu, header, toolbar].filter(Boolean)) resize.observe(node);
+  for (const node of [...sheetNodes, player, menu, header, toolbar, element('mobile-status-stack')].filter(Boolean)) resize.observe(node);
   listen(win, 'resize', wake);
   listen(win, 'blur', () => clearControlPress());
   listen(win.visualViewport, 'resize', wake);

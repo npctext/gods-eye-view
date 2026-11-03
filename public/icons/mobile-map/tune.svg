@@ -1,8 +1,8 @@
 <svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g id="Icon / tune">
-<path id="Vector" d="M3.33333 5H16.6667M3.33333 10H16.6667M3.33333 15H16.6667" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#A8B7C2"/>
-<path id="Vector_2" d="M6.66667 6.66667C7.58714 6.66667 8.33333 5.92047 8.33333 5C8.33333 4.07953 7.58714 3.33333 6.66667 3.33333C5.74619 3.33333 5 4.07953 5 5C5 5.92047 5.74619 6.66667 6.66667 6.66667Z" fill="#0D1721" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#A8B7C2"/>
-<path id="Vector_3" d="M13.3333 11.6667C14.2538 11.6667 15 10.9205 15 10C15 9.07953 14.2538 8.33333 13.3333 8.33333C12.4129 8.33333 11.6667 9.07953 11.6667 10C11.6667 10.9205 12.4129 11.6667 13.3333 11.6667Z" fill="#0D1721" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#A8B7C2"/>
-<path id="Vector_4" d="M8.33333 16.6667C9.25381 16.6667 10 15.9205 10 15C10 14.0795 9.25381 13.3333 8.33333 13.3333C7.41286 13.3333 6.66667 14.0795 6.66667 15C6.66667 15.9205 7.41286 16.6667 8.33333 16.6667Z" fill="#0D1721" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#A8B7C2"/>
+<path id="Vector" d="M3.33333 5H16.6667M3.33333 10H16.6667M3.33333 15H16.6667" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="hsla(207.272727, 18.032787%, 76.078431%, 1)"/>
+<path id="Vector_2" d="M6.66667 6.66667C7.58714 6.66667 8.33333 5.92047 8.33333 5C8.33333 4.07953 7.58714 3.33333 6.66667 3.33333C5.74619 3.33333 5 4.07953 5 5C5 5.92047 5.74619 6.66667 6.66667 6.66667Z" fill="#0D1721" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="hsla(207.272727, 18.032787%, 76.078431%, 1)"/>
+<path id="Vector_3" d="M13.3333 11.6667C14.2538 11.6667 15 10.9205 15 10C15 9.07953 14.2538 8.33333 13.3333 8.33333C12.4129 8.33333 11.6667 9.07953 11.6667 10C11.6667 10.9205 12.4129 11.6667 13.3333 11.6667Z" fill="#0D1721" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="hsla(207.272727, 18.032787%, 76.078431%, 1)"/>
+<path id="Vector_4" d="M8.33333 16.6667C9.25381 16.6667 10 15.9205 10 15C10 14.0795 9.25381 13.3333 8.33333 13.3333C7.41286 13.3333 6.66667 14.0795 6.66667 15C6.66667 15.9205 7.41286 16.6667 8.33333 16.6667Z" fill="#0D1721" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="hsla(207.272727, 18.032787%, 76.078431%, 1)"/>
 </g>
 </svg>

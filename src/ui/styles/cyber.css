@@ -593,7 +593,7 @@
     .first-run-arrow,
     .panel-collapse-btn
   ) {
-  color: #f2f5f4;
+  color: var(--icon-color);
   text-shadow: none;
 }
 
@@ -605,7 +605,7 @@
   place-items: center;
   width: 1.05rem;
   min-width: 1.05rem;
-  color: rgba(235, 241, 241, 0.88);
+  color: var(--icon-color);
   font-family: var(--font-mono);
   font-size: 0 !important;
   font-style: normal;
@@ -762,7 +762,7 @@
   display: inline-grid;
   place-items: center;
   min-width: 1rem;
-  color: #f2f5f4;
+  color: var(--icon-color);
   font-family: var(--font-mono);
   font-size: 0.82rem;
 }
@@ -1399,7 +1399,7 @@
 }
 
 :root[data-ui-theme='cyber'] #command-dock #search-toggle {
-  color: rgba(235, 241, 241, 0.9);
+  color: var(--icon-color);
   font-size: 0;
 }
 

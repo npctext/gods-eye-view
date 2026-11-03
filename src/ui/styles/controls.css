@@ -93,7 +93,7 @@ html:not([lang='en'])
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.03);
-  color: var(--text-dim);
+  color: var(--icon-color);
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1;
@@ -206,7 +206,7 @@ html:not([lang='en']) .panel-collapse-btn {
 .btn-icon {
   font-size: 20px;
   line-height: 1;
-  color: var(--text-secondary);
+  color: var(--icon-color);
   transition:
     color var(--transition-fast),
     text-shadow var(--transition-fast);
@@ -461,6 +461,10 @@ html:not([lang='en']) .panel-collapse-btn {
 .pp-icon {
   font-size: 14px;
   line-height: 1;
+}
+
+.pp-toggle-btn:not(.active):not(:has(input:checked)) .pp-icon {
+  color: var(--icon-color);
 }
 
 .pp-icon.material-symbols-outlined {

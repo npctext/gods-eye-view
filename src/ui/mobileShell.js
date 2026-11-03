@@ -18,6 +18,7 @@ import { localizePlaceName } from './placeNames.js';
 import { initMobileSettings } from './mobileSettings.js';
 import { initMobileMapControls } from './mobileMapControls.js';
 import { initMobileSheetPeek } from './mobileSheetPeek.js';
+import { initMobileLoadingClearance } from './mobileLoadingClearance.js';
 
 export const MOBILE_SHELL_MEDIA_QUERY = '(max-width: 720px)';
 export const MOBILE_SHELL_CLASS = 'mobile-shell';
@@ -674,6 +675,7 @@ export function initMobileShell({
       setSheet(null);
     },
   });
+  const loadingClearance = initMobileLoadingClearance(documentRef);
   const mapControls = initMobileMapControls({
     documentRef,
     openSearch: () => setSearchOpen(true),
@@ -1201,6 +1203,7 @@ export function initMobileShell({
         : borrowed.before.get(panelId);
     },
     destroy() {
+      loadingClearance?.destroy();
       mapControls?.destroy();
       sheetPeek?.destroy();
       setSheet(null);

@@ -133,7 +133,7 @@
   display: grid;
   place-items: center;
   padding: 0.15rem;
-  color: rgba(171, 210, 220, 0.6);
+  color: var(--icon-color);
   background: none;
   border: 1px solid transparent;
   border-radius: 0.3rem;

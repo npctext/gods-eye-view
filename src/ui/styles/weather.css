@@ -92,7 +92,7 @@
   min-width: 0;
 }
 .rail-card-heading .data-icon {
-  color: var(--text-primary);
+  color: var(--icon-color);
 }
 .rail-card-disclosure {
   color: var(--text-dim);

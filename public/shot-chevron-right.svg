@@ -1,5 +1,5 @@
 <svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g id="chevron-right">
-<path id="Vector" d="M6 4L10 8L6 12" stroke-linecap="round" stroke-linejoin="round" stroke="#9EB4C0"/>
+<path id="Vector" d="M6 4L10 8L6 12" stroke-linecap="round" stroke-linejoin="round" stroke="hsla(207.272727, 18.032787%, 76.078431%, 1)"/>
 </g>
 </svg>

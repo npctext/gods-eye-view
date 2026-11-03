@@ -14,6 +14,7 @@
   --text-primary: #e8eaed;
   --text-secondary: rgba(232, 234, 237, 0.5);
   --text-dim: rgba(232, 234, 237, 0.3);
+  --icon-color: hsla(207.272727, 18.032787%, 76.078431%, 1);
   /* Opaque surface for browser-painted menus, which cannot use --glass-bg. */
   --menu-bg: #12121c;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
