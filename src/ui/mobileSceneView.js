@@ -128,10 +128,12 @@ export function mountMobileSceneView(controls) {
     if (view === 'catalog') {
       const list = document.createElement('div');
       list.className = 'mobile-scene-list';
-      for (const item of state.scenes) {
+      for (const [index, item] of state.scenes.entries()) {
         const card = document.createElement('div');
         const active = tappedSceneId === item.id;
         card.className = `mobile-scene-card${active ? ' is-active' : ''}`;
+        const number = text('span', '#' + String(index).padStart(2, '0'), 'mobile-scene-card-number');
+        number.setAttribute('aria-hidden', 'true');
         const open = button('', () => {
           tappedShot = null;
           controls.run('selectScene', item.id);
@@ -170,7 +172,7 @@ export function mountMobileSceneView(controls) {
         moreIcon.src = active ? '/scene-ellipsis-active.svg' : '/scene-ellipsis.svg';
         moreIcon.alt = '';
         more.append(moreIcon);
-        card.append(open, more);
+        card.append(number, open, more);
         list.append(card);
       }
       content.append(list);
