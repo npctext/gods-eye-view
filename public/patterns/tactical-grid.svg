@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="88" fill="none">
+  <defs>
+    <pattern id="grid" width="56" height="56" patternUnits="userSpaceOnUse">
+      <path d="M0 0H56V56H0ZM14 0V56M28 0V56M42 0V56M0 14H56M0 28H56M0 42H56" stroke="#62edff" stroke-width=".45" opacity=".55"/>
+      <path d="M23 28h10M28 23v10" stroke="#62edff"/>
+    </pattern>
+    <linearGradient id="edges">
+      <stop stop-color="white" stop-opacity=".15"/>
+      <stop offset=".25" stop-color="white"/>
+      <stop offset=".75" stop-color="white"/>
+      <stop offset="1" stop-color="white" stop-opacity=".15"/>
+    </linearGradient>
+    <linearGradient id="bottom" x2="0" y2="1">
+      <stop offset=".45" stop-color="white"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="edge-fade"><rect width="100%" height="88" fill="url(#edges)"/></mask>
+    <mask id="bottom-fade"><rect width="100%" height="88" fill="url(#bottom)"/></mask>
+  </defs>
+  <g mask="url(#bottom-fade)">
+    <rect width="100%" height="88" fill="url(#grid)" opacity=".03" mask="url(#edge-fade)"/>
+  </g>
+</svg>

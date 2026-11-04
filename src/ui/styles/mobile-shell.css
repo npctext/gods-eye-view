@@ -13,7 +13,7 @@
   --mobile-sheet-divider-color: hsla(204, 40%, 21.76%, 1);
   --mobile-sheet-handle-color: var(--mobile-sheet-border-color);
   --mobile-map-bg: hsla(210, 43.478261%, 9.019608%, 0.9);
-  --mobile-map-button-border: linear-gradient(180deg, hsla(200, 50%, 20%, 1) 0%, hsla(200, 50%, 10%, 1) 25%, hsla(200, 50%, 10%, 1) 75%, hsla(200, 50%, 23%, 1) 100%);
+  --mobile-map-button-border: linear-gradient(180deg, hsla(200, 50%, 20%, 1) 0%, hsla(200, 50%, 12%, 1) 25%, hsla(200, 50%, 12%, 1) 75%, hsla(200, 50%, 23%, 1) 100%);
   --mobile-map-button-shadow: inset 0 -3px 2px hsla(200, 100%, 69.215686%, 0.08);
   --mobile-map-button-blur: 4px;
   --mobile-map-panel-bg: hsla(210, 43.478261%, 9.019608%, 0.98);
@@ -80,6 +80,11 @@ body.mobile-shell :is(#left-panel-stack, #right-context-rail, #mobile-details, #
   box-shadow: var(--mobile-sheet-shadow);
 }
 
+/* Variant B: a faint coordinate grid at the top of Tactical sheets. */
+:root:has(#intel-hud[data-variant='tactical']) body.mobile-shell :is(#left-panel-stack, #right-context-rail, #mobile-details, #mobile-settings, #mobile-settings .mobile-settings-detail, #mobile-sheet-restore) {
+  background: url('/patterns/tactical-grid.svg') center top / 100% 110px no-repeat, var(--mobile-sheet-bg);
+}
+
 /* Static decoration shared by all mobile sheet headers, including peek. */
 body.mobile-shell :is(#left-panel-stack, #right-context-rail, #mobile-details, #mobile-settings, #mobile-sheet-restore)::before {
   content: '';
@@ -143,6 +148,11 @@ body.mobile-shell #mobile-tab-bar {
     var(--mobile-bottom-inset) max(4px, env(safe-area-inset-left, 0px));
   background: linear-gradient(180deg, hsla(186.878981, 100%, 69.215686%, 0.03) 0%, hsla(186.878981, 100%, 69.215686%, 0) 50%, hsla(186.878981, 100%, 69.215686%, 0) 100%), hsla(210, 43.478261%, 9.019608%, 1);
   border-top: 1px solid var(--mobile-map-border);
+}
+
+:root:has(#intel-hud[data-variant='tactical']) body.mobile-shell #mobile-tab-bar {
+  background: url('/patterns/tactical-grid.svg') center top / 100% 110px no-repeat, linear-gradient(180deg, hsla(186.878981, 100%, 69.215686%, 0.03) 0%, hsla(186.878981, 100%, 69.215686%, 0) 50%, hsla(186.878981, 100%, 69.215686%, 0) 100%), hsla(210, 43.478261%, 9.019608%, 1);
+  border-image: linear-gradient(90deg, hsla(194, 100%, 20%, 1) 0%, hsla(194, 100%, 32%, 1) 50%, hsla(194, 100%, 20%, 1) 100%) 1;
 }
 
 body.mobile-shell .mobile-tab {
@@ -2042,7 +2052,7 @@ body.mobile-shell[data-mobile-sheet='layers'] #mobile-layers-filter {
   display: flex;
   flex: none;
   align-items: center;
-  padding: 4px 16px 16px;
+  padding: 0 16px 8px;
 }
 
 body.mobile-shell[data-mobile-sheet='layers'] #mobile-layers-filter button {
@@ -2051,8 +2061,8 @@ body.mobile-shell[data-mobile-sheet='layers'] #mobile-layers-filter button {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 28px;
-  padding: 0;
+  height: 25px;
+  padding: 0 0 1px 0;
   background: hsla(205.384615, 52%, 9.803922%, 1);
   border: 1px solid hsla(201.428571, 42.424242%, 25.882353%, 1);
   color: hsla(205.384615, 17.567568%, 70.980392%, 1);
@@ -2061,12 +2071,12 @@ body.mobile-shell[data-mobile-sheet='layers'] #mobile-layers-filter button {
 }
 
 body.mobile-shell[data-mobile-sheet='layers'] #mobile-layers-all {
-  width: 60px;
+  width: 56px;
   border-radius: var(--radius-surface, 4px) 0 0 var(--radius-surface, 4px);
 }
 
 body.mobile-shell[data-mobile-sheet='layers'] #mobile-layers-active {
-  min-width: 90px;
+  min-width: 86px;
   margin-left: -1px;
   border-radius: 0 var(--radius-surface, 4px) var(--radius-surface, 4px) 0;
 }
@@ -2151,7 +2161,7 @@ body.mobile-shell[data-mobile-sheet='layers'] #data-toggles {
 
 body.mobile-shell[data-mobile-sheet='layers'] .data-layer-group-heading {
   margin: 0;
-  padding: 13px 16px 8px;
+  padding: 13px 16px 4px;
   border: 0;
   color: hsla(205.384615, 17.567568%, 70.980392%, 1);
   font: 400 10px/14px var(--font-plex-mono);
