@@ -360,6 +360,9 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     // Repeated map taps keep their target while the sheet retreats.
     if (!heldLayout) toolbar.style.top = `${toolbarTop}px`;
     const visibleTop = toolbar.getBoundingClientRect().top;
+    const creditsBottom = `${Math.max(2, Math.round(win.innerHeight - visibleTop - toolbar.offsetHeight - 14))}px`;
+    if (body.style.getPropertyValue('--mobile-map-credits-bottom') !== creditsBottom)
+      body.style.setProperty('--mobile-map-credits-bottom', creditsBottom);
     // Let the bottom row use up the stack gap before moving the column.
     const stackBase = slots.find((node) => node.classList.contains('mobile-map-stack-base'));
     const stackGap = stackBase ? parseFloat(win.getComputedStyle(stackBase).marginBottom) : 0;
@@ -454,6 +457,7 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
         win.clearTimeout(northHideTimer);
         northHideTimer = null;
         heldLayout = null;
+        body.style.removeProperty('--mobile-map-credits-bottom');
         clearControlPress();
         closeMenu();
         win.cancelAnimationFrame(frame); frame = 0;

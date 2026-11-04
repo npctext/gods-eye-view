@@ -18,7 +18,7 @@
   /* Opaque surface for browser-painted menus, which cannot use --glass-bg. */
   --menu-bg: #12121c;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
-  --font-plex-mono: 'IBM Plex Mono', monospace;
+  --font-plex-mono: var(--font-mono);
   --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
   --panel-radius: 16px;
   --btn-radius: 10px;

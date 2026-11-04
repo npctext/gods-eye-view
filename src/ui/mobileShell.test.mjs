@@ -868,21 +868,21 @@ test('the phone shell keeps the required attribution visible', () => {
   const idleCredit = rule(
     'body.mobile-shell:not(.recording-mode):not(.cockpit-mode):not(.ui-clean-view) #cesium-credits',
   );
-  // Idle clears navigation; an active floating player supplies its clearance.
-  assert.match(idleCredit, /bottom: calc\(var\(--mobile-tab-space\) \+ var\(--mobile-floating-clearance, 12px\)\)/);
+  // Follow the map buttons, with navigation clearance before layout is measured.
+  assert.match(idleCredit, /bottom: var\(--mobile-map-credits-bottom, calc\(var\(--mobile-tab-space\) \+ 2px\)\) !important;/);
   // It must beat the dock's :has() placements, so the offset is !important.
   assert.match(idleCredit, /\) !important;/);
   assert.doesNotMatch(
     idleCredit,
     /display:\s*none|visibility:\s*hidden|opacity:\s*0/,
   );
-  // Open sheet: above everything the sheet covers, drawn above the sheets.
+  // Sheets share the map-button position and retain their credit stacking order.
   const sheetCredit = rule(
     'body.mobile-shell[data-mobile-sheet]:not(.recording-mode):not(.cockpit-mode):not(.ui-clean-view) #cesium-credits',
   );
-  assert.match(
+  assert.doesNotMatch(
     sheetCredit,
-    /bottom: calc\(var\(--mobile-sheet-cover, 0px\) \+ 6px\) !important;/,
+    /bottom:/,
   );
   const openDock = rule('body.mobile-shell[data-mobile-sheet] #command-dock');
   const railSheet = rule(

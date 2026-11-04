@@ -1,5 +1,6 @@
 import { t } from '../i18n/index.js';
 import { createSceneTapFeedback } from './mobileSceneFeedback.js';
+import { getSceneCategory } from './sceneCategories.js';
 
 export function mountMobileSceneView(controls) {
   const panel = controls.elements.panel;
@@ -99,6 +100,11 @@ export function mountMobileSceneView(controls) {
     if (view !== 'catalog') {
       const back = button('', () => show(view === 'menu' ? menuReturnView : ['detail', 'playing'].includes(view) ? 'catalog' : 'detail'), 'mobile-scene-back mobile-sheet-control mobile-sheet-back');
       back.setAttribute('aria-label', t('Back'));
+      const backIcon = document.createElement('img');
+      backIcon.src = '/arrow-back.svg';
+      backIcon.alt = '';
+      backIcon.className = 'mobile-scene-back-icon';
+      back.append(backIcon);
       header.append(back);
     }
     const heading = text('h2', view === 'catalog' ? t('SCENES') : scene?.title || t('SCENES'), 'mobile-sheet-title');
@@ -126,6 +132,15 @@ export function mountMobileSceneView(controls) {
     content.className = 'mobile-scene-content';
     root.append(content);
     if (view === 'catalog') {
+      const actions = document.createElement('div');
+      actions.className = 'mobile-scene-actions mobile-scene-catalog-actions';
+      const importButton = button('', () => controls.elements.file?.click(), 'mobile-scene-import', true);
+      const importIcon = document.createElement('img');
+      importIcon.src = '/icons/mobile-tactical-icons/import.svg';
+      importIcon.alt = '';
+      importButton.append(importIcon, text('span', t('Import')));
+      actions.append(importButton, button(`＋ ${t('New')}`, () => controls.createScene(), 'mobile-scene-new'));
+      content.append(actions);
       const list = document.createElement('div');
       list.className = 'mobile-scene-list';
       for (const [index, item] of state.scenes.entries()) {
@@ -152,7 +167,13 @@ export function mountMobileSceneView(controls) {
         if (item.location) details.append(text('span', item.location, 'mobile-scene-card-location'));
         const metadata = document.createElement('span');
         metadata.className = 'mobile-scene-card-metadata';
-        metadata.append(text('span', `${item.shots.length} ${t('shots')}`));
+        const category = getSceneCategory(item);
+        if (category) {
+          const badge = text('span', category, 'mobile-scene-category');
+          badge.dataset.category = category;
+          metadata.append(badge);
+        }
+        metadata.append(text('span', `${item.shots.length} ${t('shots')}`, 'mobile-scene-shot-count'));
         if (item.createdAt && Number.isFinite(Date.parse(item.createdAt))) {
           const separator = document.createElement('img');
           separator.src = '/scene-separator.svg';
@@ -176,10 +197,6 @@ export function mountMobileSceneView(controls) {
         list.append(card);
       }
       content.append(list);
-      const actions = document.createElement('div');
-      actions.className = 'mobile-scene-actions';
-      actions.append(button(`＋ ${t('New')}`, () => controls.createScene()), button(t('Import'), () => controls.elements.file?.click(), '', true));
-      content.append(actions);
     } else if (view === 'detail') {
       const meta = document.createElement('div');
       meta.className = 'mobile-scene-meta-row';

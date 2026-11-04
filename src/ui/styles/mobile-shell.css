@@ -43,6 +43,11 @@
   --mobile-sheet-control-color: var(--icon-color);
   --mobile-sheet-control-pressed-bg: hsla(196.097561, 48.235294%, 16.666667%, 1);
   --mobile-sheet-control-pressed-border: hsla(194, 50.326797%, 30%, 1);
+  /* Tactical navigation: background color/opacity, gradient, and grid. */
+  --mobile-nav-bg: hsla(202, 43.478261%, 8%, 1);
+  --mobile-nav-gradient: linear-gradient(180deg, hsla(202, 100%, 69%, 0.04) 0%, hsla(202, 100%, 40%, 0) 50%, hsla(202, 100%, 20%, 0) 100%);
+  --mobile-nav-pattern: url('/patterns/tactical-grid.svg');
+  --mobile-nav-pattern-size: 100% 110px;
   --mobile-tab-height: 74px;
   --mobile-bottom-inset: env(safe-area-inset-bottom, 0px);
   --mobile-top-inset: env(safe-area-inset-top, 0px);
@@ -146,12 +151,18 @@ body.mobile-shell #mobile-tab-bar {
   height: var(--mobile-tab-space);
   padding: 0 max(4px, env(safe-area-inset-right, 0px))
     var(--mobile-bottom-inset) max(4px, env(safe-area-inset-left, 0px));
-  background: linear-gradient(180deg, hsla(186.878981, 100%, 69.215686%, 0.03) 0%, hsla(186.878981, 100%, 69.215686%, 0) 50%, hsla(186.878981, 100%, 69.215686%, 0) 100%), hsla(210, 43.478261%, 9.019608%, 1);
+  background: linear-gradient(180deg, hsla(186.878981, 100%, 69.215686%, 0.03) 0%, hsla(186.878981, 100%, 69.215686%, 0) 50%, hsla(186.878981, 100%, 69.215686%, 0) 100%), hsla(210, 43.478261%, 9.019608%, 0.9);
+  -webkit-backdrop-filter: blur(var(--mobile-map-button-blur));
+  backdrop-filter: blur(var(--mobile-map-button-blur));
   border-top: 1px solid var(--mobile-map-border);
 }
 
 :root:has(#intel-hud[data-variant='tactical']) body.mobile-shell #mobile-tab-bar {
-  background: url('/patterns/tactical-grid.svg') center top / 100% 110px no-repeat, linear-gradient(180deg, hsla(186.878981, 100%, 69.215686%, 0.03) 0%, hsla(186.878981, 100%, 69.215686%, 0) 50%, hsla(186.878981, 100%, 69.215686%, 0) 100%), hsla(210, 43.478261%, 9.019608%, 1);
+  background-color: var(--mobile-nav-bg);
+  background-image: var(--mobile-nav-pattern), var(--mobile-nav-gradient);
+  background-position: center top;
+  background-size: var(--mobile-nav-pattern-size), 100% 100%;
+  background-repeat: no-repeat;
   border-image: linear-gradient(90deg, hsla(194, 100%, 20%, 1) 0%, hsla(194, 100%, 32%, 1) 50%, hsla(194, 100%, 20%, 1) 100%) 1;
 }
 
@@ -1325,7 +1336,7 @@ body.mobile-shell :is(.mobile-scene-card-more, .mobile-scene-meta-more, .mobile-
   border-color: hsla(193.6, 48.387097%, 30.392157%, 1);
 }
 .mobile-scene-card.is-active .mobile-scene-card-title { font-weight: 500; }
-.mobile-scene-card.is-active .mobile-scene-card-metadata > span:first-child { color: hsla(186.878981, 100%, 69.215686%, 1); }
+.mobile-scene-card.is-active .mobile-scene-shot-count { color: hsla(186.878981, 100%, 69.215686%, 1); }
 .mobile-scene-card.is-active .mobile-scene-card-more {
   background: hsla(196.097561, 48.235294%, 16.666667%, 1);
   border-color: hsla(190.12987, 50.326797%, 30%, 1);
@@ -1606,6 +1617,98 @@ body.mobile-shell #scene-panel .mobile-scene-primary {
   border-color: hsla(190.196078, 100%, 30%, 1);
   color: hsla(186.878981, 100%, 69.215686%, 1);
 }
+body.mobile-shell #scene-panel {
+  --scene-card-bg: #14232d;
+  --scene-card-border: linear-gradient(
+    180deg,
+    hsl(200, 50%, 19%) 0%,
+    hsl(200, 50%, 16%) 25%,
+    hsl(200, 50%, 16%) 75%,
+    hsl(200, 50%, 21%) 100%
+  );
+  --scene-card-shadow: inset 0 -4px 8px hsla(200, 50%, 22%, 0.25);
+}
+body.mobile-shell #scene-panel .mobile-scene-view :is(.mobile-scene-card, .mobile-scene-shot, .mobile-scene-editor-shot) {
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: linear-gradient(var(--scene-card-bg), var(--scene-card-bg)) padding-box, var(--scene-card-border) border-box;
+  box-shadow: var(--scene-card-shadow);
+}
+body.mobile-shell #scene-panel :is(.mobile-scene-card.is-active, .mobile-scene-shot[aria-current='true'], .mobile-scene-editor-shot:has([aria-current='true'])) {
+  --scene-card-bg: #10313d;
+  --scene-card-border: linear-gradient(180deg, #368793, #266673 50%, #368793);
+}
+body.mobile-shell #scene-panel .mobile-scene-card { box-sizing: border-box; min-height: 68px; }
+body.mobile-shell #scene-panel .mobile-scene-card-open { gap: 10px; }
+body.mobile-shell #scene-panel .mobile-scene-card-details { gap: 5px; }
+body.mobile-shell #scene-panel .mobile-scene-card-metadata { gap: 10px; }
+.mobile-scene-category {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  min-height: 18px;
+  padding: 1px 6px;
+  /*border: 1px solid rgba(var(--scene-category-rgb), 0.85);*/
+  border-radius: 3px;
+  background: rgba(var(--scene-category-rgb), 0.055);
+  color: rgb(var(--scene-category-rgb));
+  font: 400 9px/12px var(--font-mono);
+  white-space: nowrap;
+}
+.mobile-scene-category::before {
+  content: '';
+  flex: none;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.mobile-scene-category[data-category='AIR'] { --scene-category-rgb: 143, 181, 232; }
+.mobile-scene-category[data-category='SPACE'] { --scene-category-rgb: 56, 201, 242; }
+.mobile-scene-category[data-category='THREAT'] { --scene-category-rgb: 241, 182, 75; }
+.mobile-scene-category[data-category='URBAN'] { --scene-category-rgb: 168, 138, 237; }
+body.mobile-shell #scene-panel .mobile-scene-catalog-actions {
+  flex: none;
+  justify-content: space-between;
+  padding: 0;
+}
+body.mobile-shell #scene-panel .mobile-scene-catalog-actions > button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-height: 30px;
+  padding: 6px 12px;
+  border-radius: 5px;
+  font: 400 11px/16px var(--font-mono);
+  text-align: center;
+  text-transform: uppercase;
+  color: #b7c9d2;
+  background: #131f2b;
+  border-color: #1e3040;
+}
+body.mobile-shell #scene-panel .mobile-scene-catalog-actions > .mobile-scene-import { min-width: 96px; }
+.mobile-scene-import img { flex: none; width: 15px; height: 16px; }
+body.mobile-shell #scene-panel .mobile-scene-catalog-actions > .mobile-scene-new {
+  min-width: 88px;
+  font-weight: 500;
+  color: #62edff;
+  background: #102832;
+  border-color: #62edff;
+}
+body.mobile-shell #scene-panel[data-mobile-scene-view='catalog'] .mobile-scene-content { gap: 20px; }
+body.mobile-shell #scene-panel .mobile-scene-back::before { content: none; }
+body.mobile-shell #scene-panel .mobile-scene-back-icon {
+  display: block;
+  width: var(--mobile-sheet-back-icon-size);
+  height: var(--mobile-sheet-back-icon-size);
+  object-fit: contain;
+}
+
 .mobile-scene-tap-ripple {
   position: absolute;
   inset: 0;
@@ -1759,28 +1862,54 @@ body.mobile-shell #command-dock #gev-voice-control {
 }
 
 /* ── Credits and corner chips clear the tab bar ────────────────────────── */
-/* While the tab bar shows, the credit line sits above the voice bar. The
-   dock's placements (including the Minimal HUD's :has() variant) outrank any
-   phone selector, so the offset must win. Clean view keeps its own corner. */
+/* Keep source credits left and the attribution link below the map buttons. */
 body.mobile-shell:not(.recording-mode):not(.cockpit-mode):not(.ui-clean-view)
   #cesium-credits {
-  right: auto;
-  bottom: calc(var(--mobile-tab-space) + var(--mobile-floating-clearance, 12px)) !important;
-  left: 10px;
-  width: max-content;
-  max-width: calc(100vw - 20px);
+  right: 12px;
+  bottom: var(--mobile-map-credits-bottom, calc(var(--mobile-tab-space) + 2px)) !important;
+  left: 12px;
+  width: auto;
+  max-width: none;
   box-sizing: border-box;
-  padding: 3px 6px;
-  background: var(--glass-bg);
-  border-radius: var(--radius-surface, 6px);
-  font: 10px/1.4 var(--font-sans);
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  font: 9px/12px var(--font-sans);
   white-space: normal;
+  pointer-events: none;
   scale: 1;
+}
+
+body.mobile-shell:not(.recording-mode):not(.cockpit-mode):not(.ui-clean-view)
+  #cesium-credits .cesium-widget-credits {
+  position: static;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: end;
+  column-gap: 6px;
+  padding: 0;
+  font: inherit;
 }
 
 body.mobile-shell #cesium-credits a,
 body.mobile-shell #cesium-credits .cesium-credit-expand-link {
-  color: var(--text-primary);
+  color: hsla(205, 10%, 62%, 1);
+  pointer-events: auto;
+}
+body.mobile-shell #cesium-credits a:is(:hover, :focus-visible) { color: var(--text-primary); }
+body.mobile-shell #cesium-credits .cesium-credit-logoContainer a { display: inline-flex; vertical-align: bottom; }
+body.mobile-shell #cesium-credits .cesium-credit-logoContainer img {
+  display: block;
+  width: auto;
+  height: 16px;
+  filter: brightness(0.8) saturate(0.65);
+}
+body.mobile-shell #cesium-credits .cesium-credit-textContainer { min-width: 0; overflow-wrap: anywhere; }
+body.mobile-shell #cesium-credits .cesium-credit-textContainer .cesium-credit-wrapper:first-of-type { padding-left: 0; }
+body.mobile-shell #cesium-credits .cesium-credit-expand-link {
+  justify-self: end;
+  padding-left: 0;
+  white-space: nowrap;
 }
 
 /* An open sheet lifts the required attribution above everything it covers. */
@@ -1788,7 +1917,6 @@ body.mobile-shell[data-mobile-sheet]:not(.recording-mode):not(
     .cockpit-mode
   ):not(.ui-clean-view)
   #cesium-credits {
-  bottom: calc(var(--mobile-sheet-cover, 0px) + 6px) !important;
   z-index: 166;
 }
 
@@ -1796,7 +1924,6 @@ body.mobile-shell[data-mobile-details]:not(.recording-mode):not(
     .cockpit-mode
   ):not(.ui-clean-view)
   #cesium-credits {
-  bottom: calc(var(--mobile-details-height, 0px) + 6px) !important;
   z-index: 173;
 }
 
@@ -1905,7 +2032,7 @@ body.mobile-shell #mobile-status-stack .mobile-status-copy {
 }
 
 body.mobile-shell #mobile-status-stack .mobile-status-icon,
-body.mobile-shell #mobile-header-actions .mobile-voice-loading-icon {
+body.mobile-shell #mobile-voice-panel .mobile-voice-loading-icon {
   position: relative;
   display: block;
   animation: mobile-status-spin 1s linear infinite;
@@ -1917,7 +2044,7 @@ body.mobile-shell #mobile-status-stack .mobile-status-icon {
   background: url('/icons/status-loading.png') center / 18px 18px no-repeat;
 }
 
-body.mobile-shell #mobile-header-actions .mobile-voice-loading-icon {
+body.mobile-shell #mobile-voice-panel .mobile-voice-loading-icon {
   flex: 0 0 16px;
   width: 16px;
   height: 16px;
@@ -1968,6 +2095,29 @@ html:not([lang='en']) body.mobile-shell #mobile-status-stack #global-loading-det
   text-overflow: ellipsis;
   text-transform: none;
   white-space: nowrap;
+}
+
+body.mobile-shell #mobile-status-stack > #global-loading-status:is([data-state='retry'], [data-state='cancelled']) {
+  --mobile-status-warning-color: hsla(34.4, 100%, 70.6%, 1);
+  --mobile-status-warning-border: hsla(34.4, 100%, 70.6%, 0.65);
+  border-color: var(--mobile-status-warning-border);
+  background-color: hsla(26, 35%, 10%, 0.96);
+  color: var(--mobile-status-warning-color);
+}
+
+body.mobile-shell #mobile-status-stack > #global-loading-status:is([data-state='retry'], [data-state='cancelled']) #global-loading-label {
+  color: var(--mobile-status-warning-color);
+}
+
+body.mobile-shell #mobile-status-stack > #global-loading-status:is([data-state='retry'], [data-state='cancelled']) #global-loading-detail {
+  color: hsla(30, 45%, 75%, 1);
+}
+
+body.mobile-shell #mobile-status-stack > #global-loading-status:is([data-state='retry'], [data-state='cancelled']) .mobile-status-icon {
+  background: var(--mobile-status-warning-color);
+  -webkit-mask: url('/icons/status-loading.png') center / 18px 18px no-repeat;
+  mask: url('/icons/status-loading.png') center / 18px 18px no-repeat;
+  animation: none;
 }
 
 body.mobile-shell #mobile-status-stack #global-loading-retry:not([hidden]) {
@@ -2077,7 +2227,7 @@ body.mobile-shell[data-mobile-sheet='layers'] #mobile-layers-filter button {
   background: hsla(205.384615, 52%, 9.803922%, 1);
   border: 1px solid hsla(201.428571, 42.424242%, 25.882353%, 1);
   color: hsla(205.384615, 17.567568%, 70.980392%, 1);
-  font: 500 12px/normal var(--font-plex-mono);
+  font: 400 11px/normal var(--font-plex-mono);
   text-transform: uppercase;
 }
 
@@ -2304,7 +2454,7 @@ body.mobile-shell[data-mobile-sheet='layers'] .data-row-list {
   }
 
   body.mobile-shell #mobile-status-stack .mobile-status-icon,
-  body.mobile-shell #mobile-header-actions .mobile-voice-loading-icon {
+  body.mobile-shell #mobile-voice-panel .mobile-voice-loading-icon {
     animation: none;
   }
 }
@@ -2556,8 +2706,8 @@ body.mobile-shell .mobile-map-button, body.mobile-shell .mobile-map-zoom {
 /* Figma 181:2000: translucent surface and an inset gradient outline. */
 body.mobile-shell :is(#title-bar, #mobile-map-controls .mobile-map-button, #mobile-map-controls .mobile-map-zoom, #mobile-header-actions .mobile-header-group) {
   box-shadow: var(--mobile-map-button-shadow);
-  /*-webkit-backdrop-filter: blur(var(--mobile-map-button-blur));
-  backdrop-filter: blur(var(--mobile-map-button-blur));*/
+  -webkit-backdrop-filter: blur(var(--mobile-map-button-blur));
+  backdrop-filter: blur(var(--mobile-map-button-blur));
 }
 body.mobile-shell #mobile-map-controls :is(.mobile-map-button, .mobile-map-zoom) {
   box-shadow: var(--mobile-map-button-shadow), 0 2px 6px hsla(0, 0%, 0%, 0.12);
@@ -3053,19 +3203,21 @@ body.mobile-shell .mobile-camera-placeholder-text { max-width: 100%; }
 }
 
 :root:has(#intel-hud[data-variant='tactical']) body.mobile-shell #global-loading-status:is([data-state='retry'], [data-state='cancelled']) {
-  --mobile-floating-frame-color: rgba(255, 212, 136, 0.7);
+  --mobile-floating-frame-color: var(--mobile-status-warning-border);
 }
 
 
-/* Mobile voice borrows the live waveform; provider settings stay in Settings. */
+/* Mobile voice combines the shared conversation and session controls. */
 #mobile-voice-panel { display: none; }
+.mobile-voice-card-user-label { display: none; }
 body.mobile-shell #command-dock > #gev-voice-control { display: none; }
 body.mobile-shell #mobile-voice-panel {
+  --mobile-voice-label-width: 60px;
   position: fixed;
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  max-height: min(40dvh, 300px);
+  overflow: hidden;
   left: 12px;
   right: 12px;
   bottom: calc(var(--mobile-tab-space) + 12px);
@@ -3082,7 +3234,7 @@ body.mobile-shell #mobile-voice-panel {
   transform: translateY(12px);
   transition: opacity var(--mobile-sheet-animation-duration) ease, transform var(--mobile-sheet-animation-duration) ease, visibility var(--mobile-sheet-animation-duration);
 }
-body.mobile-shell #mobile-voice-panel.is-visible { opacity: 1; visibility: visible; pointer-events: auto; transform: none; }
+:root:not([data-tab-transition]) body.mobile-shell:not([data-mobile-sheet]) #mobile-voice-panel.is-visible { opacity: 1; visibility: visible; pointer-events: auto; transform: none; }
 #mobile-voice-panel [hidden] { display: none !important; }
 #mobile-voice-panel .mobile-voice-action {
   position: relative;
@@ -3103,57 +3255,62 @@ body.mobile-shell #mobile-voice-panel.is-visible { opacity: 1; visibility: visib
 #mobile-voice-panel .mobile-voice-action::after { content: ''; position: absolute; inset: 2px; border-radius: max(0px, calc(var(--radius-control, 4px) - 2px)); background: currentColor; opacity: 0; transition: opacity 160ms ease; pointer-events: none; }
 #mobile-voice-panel .mobile-voice-action:active::after { opacity: 0.1; }
 #mobile-voice-panel .mobile-voice-action:disabled { opacity: 0.45; cursor: default; }
-#mobile-voice-panel .mobile-voice-action[data-voice-action='end'] { color: hsla(0, 70%, 74%, 1); border-color: hsla(0, 36%, 31%, 1); background: hsla(0, 34%, 14%, 1); }
-#mobile-voice-panel .mobile-voice-action[data-voice-action='interrupt'] { color: var(--icon-color); background: var(--mobile-map-bg); }
 #mobile-voice-panel .mobile-voice-action svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-#mobile-voice-panel .mobile-voice-mute-slash { display: none; }
-#mobile-voice-panel[data-microphone='muted'] .mobile-voice-mute-slash { display: block; }
-#mobile-voice-panel[data-microphone='muted'] [data-voice-action='microphone'] { color: var(--icon-color); background: var(--mobile-map-bg); }
-#mobile-voice-panel .mobile-voice-info { flex: 1; min-width: 0; }
-#mobile-voice-panel .mobile-voice-summary { display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 0; border: 0; color: var(--mobile-map-accent); background: none; font: 500 10px/16px var(--font-plex-mono); letter-spacing: 0.8px; text-transform: uppercase; text-align: left; cursor: pointer; }
-#mobile-voice-panel .mobile-voice-summary:disabled { cursor: default; opacity: 1; }
-#mobile-voice-panel .mobile-voice-summary:disabled .mobile-voice-preview-icon { display: none; }
-#mobile-voice-panel .mobile-voice-preview-icon { flex: none; width: 5px; height: 5px; border-top: 1px solid; border-left: 1px solid; transform: rotate(45deg); }
-#mobile-voice-panel .mobile-voice-summary[aria-expanded='true'] .mobile-voice-preview-icon { transform: rotate(225deg); }
-#mobile-voice-panel .mobile-voice-error { flex-basis: 100%; margin: 0; max-height: 130px; overflow: auto; overflow-wrap: anywhere; color: hsla(0, 70%, 80%, 1); font: 400 12px/18px var(--font-plex-mono); }
-#mobile-voice-panel[data-state='error'] .mobile-voice-summary { color: hsla(0, 70%, 74%, 1); }
+#mobile-voice-panel .mobile-voice-heading { display: flex; align-items: center; flex: none; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--mobile-map-panel-border); }
+#mobile-voice-panel .mobile-voice-info { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; flex: 1; min-width: 0; }
+#mobile-voice-panel .mobile-voice-readout { display: grid; grid-template-columns: var(--mobile-voice-label-width) minmax(0, 1fr); align-items: center; width: 100%; min-width: 0; }
+#mobile-voice-panel .mobile-voice-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mobile-map-accent); font: 500 10px/16px var(--font-mono); letter-spacing: 0; text-transform: uppercase; }
+#mobile-voice-panel .mobile-voice-content { min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--mobile-map-panel-border) transparent; padding-top: 10px; }
+#mobile-voice-panel .mobile-voice-error { margin: 10px 0 0; min-height: 0; max-height: 130px; overflow: auto; overflow-wrap: anywhere; color: hsla(0, 70%, 80%, 1); font: 400 12px/18px var(--font-mono); }
+#mobile-voice-panel[data-state='error'] .mobile-voice-status { color: hsla(0, 70%, 74%, 1); }
 #mobile-voice-panel button:focus-visible { outline: 1px solid var(--mobile-map-accent); outline-offset: 3px; }
-body.mobile-shell #mobile-voice-panel #gev-voice-control { position: static; display: block; inset: auto; width: 100%; min-width: 0; max-width: none; height: 22px; margin: 2px 0 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; transform: none; backdrop-filter: none; filter: none; overflow: visible; }
+body.mobile-shell #mobile-voice-panel #gev-voice-control { position: static; display: block; inset: auto; width: 100%; min-width: 0; max-width: none; height: auto; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; transform: none; backdrop-filter: none; filter: none; overflow: visible; }
 body.mobile-shell #mobile-voice-panel #gev-voice-control::before,
 body.mobile-shell #mobile-voice-panel #gev-voice-control::after,
-body.mobile-shell #mobile-voice-panel #gev-voice-control > :not(.gev-voice-visualizer):not(.gev-voice-panel) { display: none !important; }
-body.mobile-shell #mobile-voice-panel .gev-voice-visualizer { position: static; display: flex; align-items: center; justify-content: flex-start; gap: 3px; width: 100%; height: 22px; margin: 0; padding: 0; border: 0; overflow: hidden; transform: none; }
-body.mobile-shell #mobile-voice-panel .gev-voice-visualizer span { flex: 1; max-width: 5px; height: var(--audio-level, 4px); max-height: 22px; min-height: 3px; border-radius: 1px; background: var(--mobile-map-accent); opacity: var(--audio-opacity, 0.35); animation: none; box-shadow: none; }
-body.mobile-shell #mobile-voice-panel[data-microphone='muted']:not([data-state='speaking']) .gev-voice-visualizer span,
-body.mobile-shell #mobile-voice-panel:is([data-state='error'], [data-state='connecting']) .gev-voice-visualizer span { height: 3px; opacity: 0.3; }
-body.mobile-shell #mobile-voice-panel #gev-voice-panel { position: absolute; inset: auto 0 calc(100% + 10px); width: auto; min-width: 0; max-height: min(40dvh, 300px); overflow: auto; border: 1px solid var(--mobile-map-panel-border); border-radius: var(--mobile-map-panel-radius); background: var(--mobile-map-panel-bg); box-shadow: 0 3px 12px hsla(0, 0%, 0%, 0.16); transform: none; }
+body.mobile-shell #mobile-voice-panel #gev-voice-control > :not(.gev-voice-panel) { display: none !important; }
+body.mobile-shell #mobile-voice-panel #gev-voice-panel { position: static; inset: auto; width: 100%; min-width: 0; max-width: none; max-height: none; padding: 0; overflow: visible; border: 0; border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; transform: none; }
+body.mobile-shell #mobile-voice-panel .gev-voice-panel-body { padding: 0; overflow: visible; }
+body.mobile-shell #mobile-voice-panel .gev-voice-panel-header,
 body.mobile-shell #mobile-voice-panel #gev-voice-panel[data-view='settings'],
 body.mobile-shell #mobile-voice-panel .gev-voice-panel-tabs,
 body.mobile-shell #mobile-voice-panel .gev-voice-card-kicker,
 body.mobile-shell #mobile-voice-panel .gev-voice-card-dismiss,
 body.mobile-shell #mobile-voice-panel .gev-voice-card-header:has(.gev-voice-card-phase:empty) { display: none; }
-body.mobile-shell #mobile-voice-panel #gev-voice-card { background: none; border: 0; box-shadow: none; }
+body.mobile-shell #mobile-voice-panel #gev-voice-card { gap: 12px; background: none; border: 0; box-shadow: none; }
+body.mobile-shell #mobile-voice-panel :is(.gev-voice-card-caption, .gev-voice-card-pointer) { display: grid; grid-template-columns: var(--mobile-voice-label-width) minmax(0, 1fr); align-items: baseline; gap: 4px 0; min-width: 0; font: 400 13px/20px var(--font-sans); letter-spacing: 0; }
+body.mobile-shell #mobile-voice-panel :is(.gev-voice-card-who, .gev-voice-card-phase, .gev-voice-card-notes summary) { flex: none; padding: 0; font: 500 10px/14px var(--font-mono); letter-spacing: 0.8px; text-transform: uppercase; }
+body.mobile-shell #mobile-voice-panel .gev-voice-card-who { color: var(--text-secondary); }
+body.mobile-shell #mobile-voice-panel .mobile-voice-card-user-label { display: block; }
+body.mobile-shell #mobile-voice-panel #gev-voice-card-user-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+body.mobile-shell #mobile-voice-panel .gev-voice-card-caption[data-role='assistant'] .gev-voice-card-who { color: var(--mobile-map-accent); }
+body.mobile-shell #mobile-voice-panel :is(.gev-voice-card-text, .gev-voice-card-step-label, .gev-voice-card-lines li, .gev-voice-card-referents li) { min-width: 0; overflow-wrap: anywhere; }
+body.mobile-shell #mobile-voice-panel .gev-voice-card-pointer-label { align-self: flex-start; max-width: 100%; box-sizing: border-box; padding: 2px 6px; font: 400 11px/18px var(--font-mono); }
+body.mobile-shell #mobile-voice-panel :is(.gev-voice-card-plan, .gev-voice-card-result) { gap: 6px; padding-top: 10px; border-top-color: var(--mobile-map-panel-border); }
+body.mobile-shell #mobile-voice-panel .gev-voice-card-step { grid-template-columns: 16px minmax(0, 1fr); gap: 2px 6px; font: 400 11px/18px var(--font-mono); letter-spacing: 0; }
+body.mobile-shell #mobile-voice-panel .gev-voice-card-step-detail { font-size: 11px; }
+body.mobile-shell #mobile-voice-panel .gev-voice-card-result-title { font: 600 14px/20px var(--font-sans); }
+body.mobile-shell #mobile-voice-panel :is(.gev-voice-card-lines, .gev-voice-card-referents) { display: flex; flex-direction: column; gap: 4px; }
+body.mobile-shell #mobile-voice-panel :is(.gev-voice-card-lines li, .gev-voice-card-referents li) { font-size: 12px; line-height: 18px; }
+body.mobile-shell #mobile-voice-panel .gev-voice-card-referents li::before { min-width: 16px; margin-right: 6px; font-size: 10px; }
+body.mobile-shell #mobile-voice-panel .gev-voice-card-chips { gap: 6px; }
+body.mobile-shell #mobile-voice-panel .gev-voice-card-chip { padding: 2px 5px; font-size: 10px; line-height: 14px; letter-spacing: 0.4px; }
+body.mobile-shell #mobile-voice-panel .gev-voice-card-notes summary { padding: 4px 0; }
+body.mobile-shell #mobile-voice-panel #gev-voice-preview-empty { color: var(--text-secondary); font: 400 13px/20px var(--font-sans); }
 body.mobile-shell .mobile-voice-header-icon { position: relative; --mobile-voice-mic-image: url('/icons/mobile-header/mic.svg'); }
 :root:has(#intel-hud[data-variant='tactical']) body.mobile-shell .mobile-voice-header-icon { --mobile-voice-mic-image: url('/icons/mobile-tactical-icons/mic.svg'); }
 body.mobile-shell .mobile-voice-color-icon { position: absolute; inset: 0; opacity: 0; background: var(--mobile-map-accent); mask: var(--mobile-voice-mic-image) center / contain no-repeat; -webkit-mask: var(--mobile-voice-mic-image) center / contain no-repeat; }
-body.mobile-shell #mobile-header-actions [data-voice-state]:is([aria-pressed='true'], [data-voice-state='error']) .mobile-map-mic-icon { opacity: 0; }
-body.mobile-shell #mobile-header-actions [data-voice-state]:is([aria-pressed='true'], [data-voice-state='error']) .mobile-voice-color-icon { opacity: 1; }
-body.mobile-shell #mobile-header-actions [data-voice-state='error'] .mobile-voice-color-icon { background: hsla(0, 70%, 74%, 1); }
-body.mobile-shell #mobile-header-actions [data-microphone='muted'] .mobile-voice-color-icon { background: var(--icon-color); }
-body.mobile-shell #mobile-header-actions [data-microphone='muted'] .mobile-voice-header-icon::after { content: ''; position: absolute; left: -4px; top: 50%; width: calc(100% + 8px); height: 1px; background: var(--icon-color); transform: rotate(45deg); }
-body.mobile-shell #mobile-header-actions .mobile-header-group { transition: width var(--mobile-sheet-animation-duration) ease; }
-body.mobile-shell #mobile-header-actions [data-voice-state] { flex: 0 0 45px; justify-content: flex-start; padding-left: 15px; overflow: hidden; transition: flex-basis var(--mobile-sheet-animation-duration) ease; }
-body.mobile-shell #mobile-header-actions .mobile-header-group:has([aria-pressed='true'][data-voice-state]) { width: 157px; }
-body.mobile-shell #mobile-header-actions [aria-pressed='true'][data-voice-state] { flex-basis: 67px; }
-body.mobile-shell #mobile-header-actions .mobile-voice-activity { position: absolute; left: 39px; top: calc(50% - 10px); display: grid; place-items: center; width: 14px; height: 20px; pointer-events: none; }
-body.mobile-shell #mobile-header-actions :is(.mobile-voice-activity, .mobile-voice-loading-icon)[hidden] { display: none; }
-body.mobile-shell #mobile-header-actions .mobile-voice-waveform { position: relative; z-index: 1; display: inline-flex; align-items: center; flex: none; gap: 2px; height: 20px; color: var(--mobile-map-accent); pointer-events: none; }
-body.mobile-shell #mobile-header-actions .mobile-voice-waveform[hidden] { display: none; }
-body.mobile-shell #mobile-header-actions .mobile-voice-waveform span { flex: none; width: 2px; height: clamp(3px, calc(var(--audio-level, 5px) * 0.6), 20px); border-radius: 1px; background: currentColor; transition: height 75ms linear; }
+body.mobile-shell #mobile-header-actions [data-voice-state][aria-expanded='true'] .mobile-map-mic-icon { opacity: 0; }
+body.mobile-shell #mobile-header-actions [data-voice-state][aria-expanded='true'] .mobile-voice-color-icon { opacity: 1; }
+body.mobile-shell #mobile-header-actions [data-voice-state='error'][aria-expanded='true'] .mobile-voice-color-icon { background: hsla(0, 70%, 74%, 1); }
+#mobile-voice-panel .mobile-voice-activity { display: flex; align-items: center; flex: 1; min-width: 0; height: 14px; pointer-events: none; }
+#mobile-voice-panel[data-state='connecting'] .mobile-voice-activity { flex: none; width: 20px; height: 20px; }
+#mobile-voice-panel .mobile-voice-waveform { display: flex; align-items: flex-end; gap: 3px; width: 100%; max-width: 160px; height: 14px; padding-bottom: 2px; }
+#mobile-voice-panel .mobile-voice-waveform span { flex: 1; min-width: 1px; max-width:3px; height: clamp(5px, var(--audio-level, 5px), 18px); opacity: var(--audio-opacity, 0.56); background: linear-gradient(to top, hsla(191.7, 71.3%, 50.8%, 1), hsla(188.9, 100%, 72.2%, 1)); box-shadow: 0 0 0.35rem hsla(190.4, 100%, 60.6%, 0.28); transition: height 70ms linear, opacity 90ms linear; }
+#mobile-voice-panel:has(#gev-voice-control[data-speaker='user']) .mobile-voice-waveform span { background: linear-gradient(to top, hsla(31.1, 68.3%, 52.9%, 1), hsla(35.4, 100%, 77.1%, 1)); box-shadow: 0 0 0.35rem hsla(34.4, 100%, 70.6%, 0.32); }
+#mobile-voice-panel:has(#gev-voice-control[data-speaker='user']) .mobile-voice-status { color: hsla(34.4, 100%, 70.6%, 1); }
 body.mobile-shell:has(#mobile-scene-player.is-visible) { --mobile-floating-clearance: 106px; }
-body.mobile-shell[data-mobile-voice-visible] { --mobile-voice-sheet-clearance: calc(var(--mobile-voice-height, 64px) + 24px); --mobile-floating-clearance: var(--mobile-voice-sheet-clearance); }
-body.mobile-shell[data-mobile-voice-visible] :is(#left-panel-stack, #right-context-rail, #mobile-details, #mobile-sheet-restore) { bottom: calc(var(--mobile-tab-space) + var(--mobile-voice-sheet-clearance)); }
-body.mobile-shell[data-mobile-voice-visible] #mobile-settings { padding-bottom: calc(var(--mobile-tab-space) + var(--mobile-voice-sheet-clearance)); }
+body.mobile-shell[data-mobile-voice-visible]:not([data-mobile-sheet]) { --mobile-voice-sheet-clearance: calc(var(--mobile-voice-height, 64px) + 24px); --mobile-floating-clearance: var(--mobile-voice-sheet-clearance); }
+body.mobile-shell[data-mobile-voice-visible]:not([data-mobile-sheet]) #mobile-details { bottom: calc(var(--mobile-tab-space) + var(--mobile-voice-sheet-clearance)); }
 @media (prefers-reduced-motion: reduce) {
-  body.mobile-shell #mobile-voice-panel, #mobile-voice-panel .mobile-voice-action::after, body.mobile-shell #mobile-header-actions .mobile-voice-waveform span, body.mobile-shell #mobile-header-actions .mobile-header-group, body.mobile-shell #mobile-header-actions [data-voice-state] { transition: none; }
+  body.mobile-shell #mobile-voice-panel, #mobile-voice-panel .mobile-voice-action::after, #mobile-voice-panel .mobile-voice-waveform span { transition: none; }
 }
