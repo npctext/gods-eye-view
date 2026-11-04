@@ -6,7 +6,7 @@
   /* Shared mobile sheets: Layers, Scenes, Cameras, Context, Settings and peek.
      Change --mobile-sheet-bg here (a solid color or a complete gradient). */
   --mobile-sheet-bg: linear-gradient(180deg, hsla(202.222222, 57.446809%, 9.215686%, 0.97), hsla(216, 51.724138%, 5.686275%, 0.95)), hsla(206.666667, 56.25%, 6.27451%, 0.96);
-  --mobile-sheet-border-color: hsla(194, 100%, 30%, 1);
+  --mobile-sheet-border-color: hsla(194, 80%, 34%, 1);
   --mobile-sheet-border-width: 1px;
   --mobile-sheet-radius: var(--radius-surface, 4px);
   --mobile-sheet-shadow: 0 -16px 32px hsla(207, 44.827586%, 5.686275%, 0.48);
@@ -637,17 +637,17 @@ body.mobile-shell .mobile-details-handle {
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 12px;
-  margin-bottom: 2px;
+  height: 8px;
+  margin-bottom: 6px;
   touch-action: none;
 }
 
 body.mobile-shell .mobile-details-handle::before {
   content: '';
   width: 28px;
-  height: 3px;
-  background: hsla(201.428571, 42.424242%, 25.882353%, 1);
-  border-radius: 1px;
+  height: 2px;
+  background: hsla(194, 50%, 35%, 1);
+  border-radius: 0;
 }
 
 body.mobile-shell .mobile-details-header {
@@ -685,6 +685,7 @@ body.mobile-shell .mobile-details-divider {
   flex: none;
   height: 1px;
   background: var(--mobile-sheet-divider-color);
+  background: linear-gradient(90deg, hsla(204, 40%, 15%, 1) 0%, hsla(204, 40%, 20%, 1) 50%, hsla(204, 40%, 15%, 1) 100%);
 }
 
 body.mobile-shell #mobile-details-content {

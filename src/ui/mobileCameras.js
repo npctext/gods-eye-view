@@ -89,10 +89,11 @@ export function initMobileCameras({ documentRef, onClose, onCollapse, onCoverage
     const value = win.getComputedStyle(root).getPropertyValue('--mobile-sheet-animation-duration').trim();
     return win.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : parseFloat(value || '280ms') * (value.endsWith('s') && !value.endsWith('ms') ? 1000 : 1);
   };
-  const expanded = () => documentRef.fullscreenElement === frame || frame.matches(':popover-open');
+  const popoverOpen = () => typeof frame.hidePopover === 'function' && frame.matches(':popover-open');
+  const expanded = () => documentRef.fullscreenElement === frame || popoverOpen();
   const shrink = () => {
     if (documentRef.fullscreenElement === frame) void documentRef.exitFullscreen()?.catch(() => {});
-    if (frame.matches(':popover-open')) frame.hidePopover();
+    if (popoverOpen()) frame.hidePopover();
     frame.removeAttribute('popover');
   };
   const syncExpanded = () => {

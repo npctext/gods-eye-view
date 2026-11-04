@@ -155,6 +155,7 @@ export function initMobileSettings({ documentRef, onClose, onCollapse, onLanguag
     if (!next) {
       for (const [key, label, icon] of CATEGORIES)
         row(label, icon, () => show(key), key === 'language' ? LOCALE_NAMES[getLocale()] : '');
+      if (win.__gevMapDiagnostics) row('Save map diagnostics', 'public', () => win.__gevMapDiagnostics.download());
     } else if (next === 'appearance') {
       borrow(byId('style-buttons'));
       group('hud-toggle');

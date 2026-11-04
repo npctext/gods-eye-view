@@ -18,6 +18,6 @@
     <mask id="bottom-fade"><rect width="100%" height="88" fill="url(#bottom)"/></mask>
   </defs>
   <g mask="url(#bottom-fade)">
-    <rect width="100%" height="88" fill="url(#grid)" opacity=".03" mask="url(#edge-fade)"/>
+    <rect width="100%" height="88" fill="url(#grid)" opacity=".04" mask="url(#edge-fade)"/>
   </g>
 </svg>
