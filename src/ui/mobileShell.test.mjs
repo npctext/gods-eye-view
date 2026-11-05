@@ -160,6 +160,7 @@ function fixture({
   onExploreAction,
   onExploreLocation,
   readExploreView,
+  subscribeRadio,
 } = {}) {
   const document = new EventTarget();
   document.ids = new Map();
@@ -205,6 +206,13 @@ function fixture({
       cities.id = 'location-pills';
       popover.append(pois, divider, cities, search);
       panel.append(popover);
+    }
+    if (id === 'radio-panel') {
+      const entry = element('button', document);
+      entry.id = 'mobile-radio-receiver';
+      const receiver = element('div', document);
+      receiver.id = 'sdr-radio-card';
+      panel.append(entry, receiver);
     }
     if (id === 'scene-panel') {
       const select = element('select', document);
@@ -273,6 +281,7 @@ function fixture({
     onExploreAction,
     onExploreLocation,
     readExploreView,
+    subscribeRadio,
     matchMedia: (query) => query === '(prefers-reduced-motion: reduce)' ? { matches: false } : media,
     MutationObserverImpl: FakeMutationObserver,
     ResizeObserverImpl: null,
@@ -329,7 +338,7 @@ function fixture({
 test('every tab names a sheet and every sheet panel maps back to its sheet', () => {
   assert.deepEqual(
     MOBILE_TABS.map(({ sheet }) => sheet),
-    Object.keys(MOBILE_SHEET_PANELS),
+    Object.keys(MOBILE_SHEET_PANELS).filter(sheet => sheet !== 'radio'),
   );
   for (const [sheet, panels] of Object.entries(MOBILE_SHEET_PANELS))
     for (const panelId of panels) assert.equal(sheetForPanelId(panelId), sheet);
@@ -788,7 +797,7 @@ test('layout settling after a sheet opens is part of opening', () => {
 });
 
 test('the active navigation tab uses the standard closing transition for every sheet', async () => {
-  for (const sheet of Object.keys(MOBILE_SHEET_PANELS)) {
+  for (const { sheet } of MOBILE_TABS) {
     const { document, shell, press } = fixture();
     press(sheet);
     document.documentElement = element('html', document);
@@ -1046,7 +1055,7 @@ test('Scenes editor outer scroller and lowered content keep native scroll priori
 });
 
 test('downward sheet pull closes through borrowed-panel lifecycle and returns tab focus', () => {
-  for (const sheet of Object.keys(MOBILE_SHEET_PANELS).filter((name) => !['layers', 'scenes', 'more'].includes(name))) {
+  for (const sheet of Object.keys(MOBILE_SHEET_PANELS).filter((name) => !['layers', 'scenes', 'more', 'radio'].includes(name))) {
     const phone = fixture();
     const { document, shell, press, tab } = phone;
     press(sheet);
@@ -1448,9 +1457,15 @@ test('Explore quick actions close search and explicitly open data without tab si
   const { document, shell, search, tab, press } = fixture({ readExploreView: () => ({ latitude: 40, longitude: -74 }), onExploreAction: action => actions.push(action), onTabOpened: sheet => opened.push(sheet) });
   const buttons = document.getElementById('mobile-search-bar').querySelectorAll('button').filter(button => button.dataset.exploreAction);
   assert.deepEqual(buttons.map(button => button.dataset.exploreAction), ['contacts', 'cameras', 'weather', 'radio']);
+  const header = document.createElement('div');
+  header.id = 'mobile-header-actions';
+  const launcher = document.createElement('button');
+  launcher.setAttribute('aria-controls', 'mobile-search-bar');
+  header.append(launcher);
+  document.body.append(header);
   for (const button of buttons) {
     const action = button.dataset.exploreAction;
-    const expectedSheet = action === 'cameras' ? 'cameras' : 'context';
+    const expectedSheet = action === 'cameras' ? 'cameras' : action === 'radio' ? 'radio' : 'context';
     shell.openSearch();
     button.click();
     assert.equal(shell.getSheet(), expectedSheet);
@@ -1466,7 +1481,7 @@ test('Explore quick actions close search and explicitly open data without tab si
     }
     assert.equal(document.getElementById('location-search'), search);
     shell.setSheet(null);
-    assert.equal(document.activeElement, tab(expectedSheet));
+    assert.equal(document.activeElement, expectedSheet === 'radio' ? document.getElementById('mobile-header-actions').querySelector('[aria-controls="mobile-search-bar"]') : tab(expectedSheet));
   }
   assert.deepEqual(opened, [], 'Radio must not implicitly enter Contacts for a tracked aircraft');
   shell.destroy();
@@ -1508,14 +1523,16 @@ test('Explore enables Contacts and cameras idempotently without flying', async (
 
 test('Explore Radio selects nearby silently and preserves an existing broadcast', async () => {
   const { host, calls } = exploreActionHost();
+  host.sheet = 'radio';
   await StyleManager.prototype._openExploreAction.call(host, 'radio');
-  assert.deepEqual(calls, [['enable', 'radio', true], ['radio', { autoplay: false, origin: 'user' }], ['panel', 'radio-panel', false, { explicit: true }], ['reveal']]);
+  assert.deepEqual(calls, [['enable', 'radio', true], ['radio', { autoplay: false, origin: 'user' }], ['panel', 'radio-panel', false, { explicit: true }]]);
   for (const audioState of ['playing', 'loading', 'buffering']) {
     calls.length = 0;
     host.services.radioLayer.getUIState = () => ({ audioState });
     await StyleManager.prototype._openExploreAction.call(host, 'radio');
     assert.equal(calls.some(call => call[0] === 'radio'), false);
-    assert.equal(calls.some(call => call[0] === 'reveal'), true);
+    assert.equal(calls.some(call => call[0] === 'panel'), true);
+    assert.equal(calls.some(call => call[0] === 'reveal'), false);
   }
 });
 
@@ -1600,4 +1617,146 @@ test('Current map view claims navigation before flying and rejects missing groun
   StyleManager.prototype._flyToExploreView.call(host, { latitude: 53.9, longitude: 27.5, height: 1800, heading: 0.5 });
   assert.equal(calls[0], 'location');
   assert.deepEqual(calls[1].orientation, { heading: 0.5, pitch: -Math.PI / 2, roll: 0 });
+});
+
+test('Radio is a separate sheet, restores panel state and leaves Context closed', () => {
+  const { document, shell, collapsed, tab, resize } = fixture();
+  document.dispatchEvent(new Event('gev:radio-selected'));
+  assert.equal(shell.getSheet(), 'radio');
+  assert.equal(collapsed('global-context-panel'), true);
+  assert.equal(collapsed('radio-panel'), false);
+  assert.equal(tab('context').getAttribute('aria-expanded'), 'false');
+  assert.equal(document.getElementById('mobile-context-handle').querySelector('.mobile-sheet-title').textContent, 'Radio');
+  document.getElementById('radio-panel').scrollTop = 80;
+  document.getElementById('mobile-context-close').click();
+  assert.equal(shell.getSheet(), null);
+  assert.equal(collapsed('radio-panel'), true);
+  shell.setSheet('radio');
+  assert.equal(document.getElementById('radio-panel').scrollTop, 0);
+  resize(false);
+  assert.equal(shell.getSheet(), null);
+  document.dispatchEvent(new Event('gev:radio-selected'));
+  assert.equal(shell.getSheet(), null, 'desktop selection does not open the mobile sheet');
+  shell.destroy();
+});
+
+test('Radio receiver Back restores the main view; X, navigation and desktop reset it', () => {
+  const { document, shell, resize, press } = fixture();
+  const panel = document.getElementById('radio-panel');
+  const entry = document.getElementById('mobile-radio-receiver');
+  const back = document.getElementById('mobile-radio-back');
+  const title = document.getElementById('mobile-context-handle').querySelector('.mobile-sheet-title');
+  shell.setSheet('radio');
+  panel.scrollTop = 90;
+  entry.click();
+  assert.equal(title.textContent, 'RTL-SDR receiver');
+  assert.equal(back.hidden, false);
+  assert.equal(panel.scrollTop, 0);
+  assert.equal(document.activeElement, back);
+  document.body.setAttribute('data-mobile-rail-expanded', '');
+  back.click();
+  assert.equal(title.textContent, 'Radio');
+  assert.equal(back.hidden, true);
+  assert.equal(panel.scrollTop, 90);
+  assert.equal(document.body.hasAttribute('data-mobile-rail-expanded'), false);
+  assert.equal(document.activeElement, entry);
+  entry.click();
+  const escape = new Event('keydown', { cancelable: true });
+  escape.key = 'Escape';
+  document.dispatchEvent(escape);
+  assert.equal(shell.getSheet(), 'radio');
+  assert.equal(back.hidden, true);
+  entry.click();
+  document.getElementById('mobile-context-close').click();
+  assert.equal(shell.getSheet(), null);
+  shell.setSheet('radio');
+  assert.equal(back.hidden, true);
+  assert.equal(panel.scrollTop, 0);
+  entry.click();
+  press('layers');
+  assert.equal(document.body.hasAttribute('data-mobile-radio-receiver'), false);
+  shell.setSheet('radio');
+  entry.click();
+  document.dispatchEvent(new Event('gev:radio-selected'));
+  assert.equal(back.hidden, true, 'map selection returns to internet radio');
+  entry.click();
+  resize(false);
+  assert.equal(document.body.hasAttribute('data-mobile-radio-receiver'), false);
+  shell.destroy();
+});
+
+test('a pending receiver transition cannot reopen a closed Radio sheet', async () => {
+  const { document, shell } = fixture();
+  shell.setSheet('radio');
+  document.documentElement = element('html', document);
+  let finish;
+  document.startViewTransition = update => ({
+    finished: new Promise(resolve => { finish = resolve; }),
+    skipTransition: () => { update(); finish(); },
+  });
+  document.getElementById('mobile-radio-receiver').click();
+  shell.setSheet(null);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(shell.getSheet(), null);
+  assert.equal(document.body.hasAttribute('data-mobile-radio-receiver'), false);
+  assert.equal(document.documentElement.hasAttribute('data-tab-transition'), false);
+  shell.destroy();
+});
+
+test('Explore reflects radio events while open and releases the subscription', () => {
+  let update;
+  let unsubscribed = 0;
+  const { document, shell } = fixture({ subscribeRadio: listener => {
+    update = listener;
+    listener({ enabled: false, audioState: 'stopped' });
+    return () => { unsubscribed += 1; };
+  } });
+  const card = document.getElementById('mobile-search-bar').querySelectorAll('button').find(node => node.dataset.exploreAction === 'radio');
+  const label = card.children.find(node => node.className === 'mobile-explore-radio-label');
+  const [station, status] = label.children[1].children;
+  assert.equal(station.hidden, true);
+  assert.equal(status.textContent, 'Radio off');
+  shell.openSearch();
+  const selected = { id: 'radio-one', name: '<Radio & station>' };
+  for (const [audioState, expected] of [['loading', 'Connecting…'], ['playing', 'Playing'], ['buffering', 'Buffering…'], ['paused', 'Paused'], ['error', 'Playback error'], ['stopped', 'Ready']]) {
+    update({ enabled: true, selected, audioState });
+    assert.equal(station.textContent, selected.name);
+    assert.equal(station.hidden, false);
+    assert.equal(status.textContent, expected);
+    assert.equal(document.body.hasAttribute('data-mobile-search-open'), true);
+  }
+  for (const flags of [{ voiceDucked: true }, { voiceRestoring: true }]) {
+    update({ enabled: true, selected, audioState: 'playing', ...flags });
+    assert.equal(status.textContent, flags.voiceDucked ? 'Muted for voice' : 'Restoring volume…');
+    for (const [audioState, expected] of [['paused', 'Paused'], ['stopped', 'Ready'], ['loading', 'Connecting…'], ['buffering', 'Buffering…'], ['error', 'Playback error']]) {
+      update({ enabled: true, selected, audioState, ...flags });
+      assert.equal(status.textContent, expected);
+    }
+    update({ enabled: false, selected, audioState: 'playing', ...flags });
+    assert.equal(status.textContent, 'Radio off');
+  }
+  update({ enabled: true, selected, audioState: 'playing', error: 'Catalog unavailable' });
+  assert.equal(status.textContent, 'Playing', 'a catalog refresh failure must not claim that a playing stream failed');
+  update({ enabled: true, audioState: 'stopped', loading: true });
+  assert.equal(status.textContent, 'Loading stations…');
+  assert.equal(station.hidden, true);
+  update({ enabled: true, audioState: 'stopped', error: 'Catalog unavailable' });
+  assert.equal(status.textContent, 'Stations unavailable');
+  update({ enabled: false, selected, audioState: 'error' });
+  assert.equal(status.textContent, 'Radio off');
+  assert.equal(station.hidden, true);
+  shell.destroy();
+  assert.equal(unsubscribed, 1);
+});
+
+test('returning from Explore preserves the selected paused, stopped or failed station', async () => {
+  const { host, calls } = exploreActionHost();
+  host.sheet = 'radio';
+  for (const audioState of ['paused', 'stopped', 'error']) {
+    host.services.radioLayer.getUIState = () => ({ audioState, selected: { id: 'same-station' } });
+    calls.length = 0;
+    await StyleManager.prototype._openExploreAction.call(host, 'radio');
+    assert.equal(calls.some(call => call[0] === 'radio'), false);
+    assert.equal(calls.some(call => call[0] === 'panel'), true);
+  }
 });

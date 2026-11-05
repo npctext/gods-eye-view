@@ -112,12 +112,24 @@ export function initMobileExplore({ documentRef, searchBar, searchInput, cities,
   const quickActions = make('div', 'mobile-explore-quick-actions', quickHost);
   quickActions.setAttribute('role', 'group');
   quickActions.setAttribute('aria-label', t('Current map view'));
-  for (const [action, label] of [['contacts', t('CONTACTS')], ['cameras', t('Cameras')], ['weather', t('Weather')], ['radio', t('Radio')]]) {
+  for (const [action, label] of [['contacts', t('CONTACTS')], ['cameras', t('Cameras')], ['weather', t('Weather')]]) {
     const item = button(quickActions, 'mobile-explore-quick-action', undefined, () => onQuickAction?.(action, currentView));
     item.dataset.exploreAction = action;
     icon(action, item);
     make('span', 'mobile-explore-quick-label', item, label);
   }
+
+  const radio = make('section', 'mobile-explore-section', browse);
+  const radioCard = button(radio, 'mobile-explore-radio', undefined, () => onQuickAction?.('radio', currentView));
+  radioCard.dataset.exploreAction = 'radio';
+  icon('radio', radioCard);
+  const radioLabel = make('span', 'mobile-explore-radio-label', radioCard);
+  make('span', '', radioLabel, t('Radio'));
+  const radioMeta = make('span', 'mobile-explore-meta mobile-explore-radio-meta', radioLabel);
+  const radioStation = make('span', 'mobile-explore-radio-station', radioMeta);
+  radioStation.hidden = true;
+  const radioStatus = make('span', 'mobile-explore-radio-status', radioMeta, t('Radio off'));
+  make('span', 'mobile-explore-chevron', radioCard, '›').setAttribute('aria-hidden', 'true');
 
   const places = make('section', 'mobile-explore-section', browse);
   make('h2', 'mobile-explore-heading', places, t('Quick locations'));
@@ -154,6 +166,17 @@ export function initMobileExplore({ documentRef, searchBar, searchInput, cities,
   observer?.observe(searchInput, { attributes: true, attributeFilter: ['class'] });
   return {
     header, content, citiesHost, promoHost, promoStrip, quickHost, quickActions, setMobile, updateQuery,
+    updateRadio(state) {
+      const enabled = Boolean(state?.enabled);
+      const name = enabled ? state.selected?.name || '' : '';
+      radioStation.textContent = name;
+      radioStation.hidden = !name;
+      radioStation.title = name;
+      const playing = state?.voiceDucked ? t('Muted for voice') : state?.voiceRestoring ? t('Restoring volume…') : t('Playing');
+      const labels = { playing, paused: t('Paused'), loading: t('Connecting…'), buffering: t('Buffering…'), error: t('Playback error') };
+      radioStatus.textContent = !enabled ? t('Radio off') : labels[state.audioState] ||
+        (state.error ? t('Stations unavailable') : state.loading ? t('Loading stations…') : t('Ready'));
+    },
     refresh() {
       const scenes = new Map(Array.from(documentRef.getElementById('scene-select')?.options || [], option => [option.value, option.textContent]));
       for (const { id, card, name } of promoCards) {

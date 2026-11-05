@@ -44,8 +44,7 @@
 <path id="Vector_41" d="M0 892H430" stroke-width="0.5" stroke="#091B25"/>
 <path id="Vector_42" d="M0 924H430" stroke-width="0.5" stroke="#091B25"/>
 </g>
-<path id="Upper orbit &#194;&#183; main" d="M-65 228C100.333 85.3334 286.667 60.6667 494 154" stroke-width="0.85" stroke="#2CDCE2"/>
-<path id="Upper orbit &#194;&#183; crossing" d="M-60 181C122.667 113.667 308 141.333 496 264" stroke-width="0.65" stroke="#1DD5F1"/>
+<path id="Upper orbit &#194;&#183; main" opacity="0.35" d="M-65 228C100.333 85.3334 286.667 60.6667 494 154" stroke-width="0.85" stroke="#2CDCE2"/>
 <g id="Vector_46" opacity="0.14" filter="url(#filter0_f_0_16)">
 <path d="M-45 743C-11.0392 708.532 29.4361 681.161 74.0717 662.478C118.707 643.795 166.612 634.174 215 634.174C263.388 634.174 311.293 643.795 355.928 662.478C400.564 681.161 441.039 708.532 475 743" stroke-width="10" stroke="#19D9FF"/>
 </g>

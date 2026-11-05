@@ -104,7 +104,7 @@ body.mobile-shell :is(#left-panel-stack, #right-context-rail, #mobile-details, #
 
 /* Desktop panel wrappers must not paint a second surface inside a mobile sheet. */
 body.mobile-shell[data-mobile-sheet] :is(#left-panel-stack, #right-context-rail)
-  :is(.data-panel-inner, .scene-panel-inner, .cctv-panel-inner, .street-level-panel-inner, .global-context-panel-inner, .weather-panel-inner, .recent-imagery-panel-inner) {
+  :is(.data-panel-inner, .scene-panel-inner, .cctv-panel-inner, .street-level-panel-inner, .global-context-panel-inner, .radio-panel-inner, .weather-panel-inner, .recent-imagery-panel-inner) {
   background: hsla(0, 0%, 0%, 0);
   border-color: hsla(0, 0%, 0%, 0);
   box-shadow: none;
@@ -948,6 +948,7 @@ body.mobile-shell[data-mobile-sheet='layers'] #left-panel-stack,
 body.mobile-shell[data-mobile-sheet='scenes'] #left-panel-stack,
 body.mobile-shell[data-mobile-sheet='cameras'] #right-context-rail,
 body.mobile-shell[data-mobile-sheet='context'] #right-context-rail,
+body.mobile-shell[data-mobile-sheet='radio'] #right-context-rail,
 body.mobile-shell[data-mobile-sheet='more'] #right-context-rail {
   position: fixed;
   top: auto;
@@ -1000,6 +1001,7 @@ body.mobile-shell[data-mobile-sheet='context']
 body.mobile-shell[data-mobile-sheet='context']
   #right-context-rail
   > #recent-imagery-panel:not([hidden]),
+body.mobile-shell[data-mobile-sheet='radio'] #right-context-rail > #radio-panel,
 body.mobile-shell[data-mobile-sheet='more'] #right-context-rail > #pp-toggles {
   position: relative;
   inset: auto;
@@ -1013,21 +1015,21 @@ body.mobile-shell[data-mobile-sheet='more'] #right-context-rail > #pp-toggles {
 /* Context shares the sheet surface; the existing data controls keep their owners. */
 #mobile-context-header { display: none; }
 body.mobile-shell #context-radio-dock { display: none; }
-body.mobile-shell[data-mobile-sheet='context'] #right-context-rail {
+body.mobile-shell:is([data-mobile-sheet='context'], [data-mobile-sheet='radio']) #right-context-rail {
   height: 45dvh;
   gap: 0;
   padding: 0;
   overflow: hidden;
   transition: max-height var(--mobile-sheet-animation-duration) ease, height var(--mobile-sheet-animation-duration) ease, translate var(--mobile-sheet-animation-duration) ease;
 }
-body.mobile-shell[data-mobile-rail-expanded]:is([data-mobile-sheet='cameras'], [data-mobile-sheet='context']) #right-context-rail {
+body.mobile-shell[data-mobile-rail-expanded]:is([data-mobile-sheet='cameras'], [data-mobile-sheet='context'], [data-mobile-sheet='radio']) #right-context-rail {
   height: var(--mobile-sheet-max-height);
 }
 body.mobile-shell[data-mobile-sheet='context'][data-mobile-contacts-compact] #right-context-rail {
   height: min(var(--mobile-contacts-compact-height, 45dvh), var(--mobile-sheet-max-height));
 }
-body.mobile-shell[data-mobile-sheet='context'][data-mobile-rail-dragging] #right-context-rail { transition: none; }
-body.mobile-shell[data-mobile-sheet='context'] #right-context-rail > #mobile-context-header {
+body.mobile-shell:is([data-mobile-sheet='context'], [data-mobile-sheet='radio'])[data-mobile-rail-dragging] #right-context-rail { transition: none; }
+body.mobile-shell:is([data-mobile-sheet='context'], [data-mobile-sheet='radio']) #right-context-rail > #mobile-context-header {
   position: relative;
   z-index: 3;
   display: block;
@@ -1051,7 +1053,7 @@ body.mobile-shell #mobile-context-handle {
 }
 body.mobile-shell #mobile-context-header .mobile-details-handle { position: absolute; top: 0; left: 0; width: 100%; }
 body.mobile-shell #mobile-context-header .mobile-sheet-title,
-body.mobile-shell:is([data-mobile-sheet='context'], [data-mobile-sheet='cameras']) #mobile-sheet-restore .mobile-sheet-title { text-transform: uppercase; }
+body.mobile-shell:is([data-mobile-sheet='context'], [data-mobile-sheet='cameras'], [data-mobile-sheet='radio']) #mobile-sheet-restore .mobile-sheet-title { text-transform: uppercase; }
 body.mobile-shell #mobile-context-close { flex: none; }
 body.mobile-shell[data-mobile-sheet='context'] #right-context-rail > :is(#global-context-panel, #weather-panel, #recent-imagery-panel) {
   flex: 0 0 auto;
@@ -1074,6 +1076,46 @@ body.mobile-shell[data-mobile-sheet='context'] #right-context-rail #global-conte
 }
 body.mobile-shell[data-mobile-sheet='context'] #right-context-rail #global-context-panel .global-context-panel-inner > .panel-header { display: none; }
 body.mobile-shell[data-mobile-sheet='context'] #right-context-rail #global-context-panel .global-context-panel-inner > .cyber-panel-body { overflow: visible; }
+body.mobile-shell[data-mobile-sheet='radio'] #right-context-rail {
+  animation: mobile-settings-enter var(--mobile-sheet-animation-duration) ease;
+}
+body.mobile-shell[data-mobile-sheet='radio'] #right-context-rail > #radio-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+body.mobile-shell[data-mobile-sheet='radio'] #right-context-rail #radio-panel .radio-panel-inner {
+  height: auto;
+  max-height: none;
+  padding: 16px;
+  border: 0;
+  overflow: visible;
+}
+body.mobile-shell[data-mobile-sheet='radio'] #right-context-rail #radio-panel .radio-panel-inner > .panel-header { display: none; }
+#mobile-radio-receiver,
+#mobile-radio-back[hidden] { display: none; }
+body.mobile-shell:not([data-mobile-radio-receiver]) #sdr-radio-card { display: none; }
+body.mobile-shell[data-mobile-radio-receiver] #radio-panel .radio-panel-inner > :not(#sdr-radio-card) { display: none; }
+body.mobile-shell[data-mobile-sheet='radio']:not([data-mobile-radio-receiver]) #mobile-radio-receiver {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--mobile-map-panel-border);
+  border-radius: var(--mobile-map-radius);
+  background: var(--mobile-map-bg);
+  color: var(--mobile-map-muted);
+  font: 400 12px/1.4 var(--font-mono);
+  text-align: left;
+}
+body.mobile-shell #mobile-radio-receiver:active { background: var(--mobile-map-selected); }
 body.mobile-shell .mobile-tab-label { position: relative; }
 body.mobile-shell .mobile-tab-count {
   position: absolute;
@@ -1096,6 +1138,8 @@ body.mobile-shell .mobile-map-radio-indicator {
   background: currentColor;
   pointer-events: none;
 }
+body.mobile-shell #mobile-map-radio[data-radio-muted='true'] .mobile-map-radio-indicator,
+body.mobile-shell #mobile-map-radio:not([data-radio-state='playing']) .mobile-map-radio-indicator { display: none; }
 body.mobile-shell .mobile-map-radio-indicator::after {
   content: '';
   position: absolute;
@@ -1121,9 +1165,11 @@ body.mobile-shell .mobile-map-radio-indicator::after {
   transition: none;
 }
 :root[data-tab-transition] body.mobile-shell:is([data-mobile-sheet='layers'], [data-mobile-sheet='scenes']) #left-panel-stack,
-:root[data-tab-transition] body.mobile-shell:is([data-mobile-sheet='cameras'], [data-mobile-sheet='context'], [data-mobile-sheet='more']) #right-context-rail {
+:root[data-tab-transition] body.mobile-shell:is([data-mobile-sheet='cameras'], [data-mobile-sheet='context'], [data-mobile-sheet='radio'], [data-mobile-sheet='more']) #right-context-rail {
   view-transition-name: scene-sheet;
 }
+/* Settle Radio's destination height before restoring its scroll position. */
+:root[data-tab-transition] body.mobile-shell[data-mobile-sheet='radio'] #right-context-rail { transition: none; }
 :root[data-tab-transition] body.mobile-shell[data-mobile-sheet='more'] #command-dock {
   view-transition-name: scene-dock;
 }
@@ -1244,18 +1290,18 @@ body.mobile-shell[data-mobile-sheet='scenes'] .mobile-scene-content {
   scrollbar-gutter: auto;
 }
 /* Shared scrollbar for mobile Scenes and Layers. */
-body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #mobile-weather) {
+body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #radio-panel, #mobile-weather) {
   scrollbar-width: thin;
   scrollbar-color: hsla(190.117647, 100%, 50%, 0.5) hsla(0, 0%, 100%, 0.04);
 }
-body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #mobile-weather)::-webkit-scrollbar {
+body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #radio-panel, #mobile-weather)::-webkit-scrollbar {
   width: 3px;
 }
-body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #mobile-weather)::-webkit-scrollbar-track {
+body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #radio-panel, #mobile-weather)::-webkit-scrollbar-track {
   background: hsla(0, 0%, 100%, 0.04);
   border-radius: 0;
 }
-body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #mobile-weather)::-webkit-scrollbar-thumb {
+body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #radio-panel, #mobile-weather)::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, hsla(190.117647, 100%, 50%, 0.35), hsla(190.117647, 100%, 50%, 0.25));
   border-radius: 0;
 }
@@ -1421,6 +1467,20 @@ body.mobile-shell .mobile-sheet-close {
   padding: 0;
   background: hsla(190, 39.68254%, 12.352941%, 0.5);
   border: 1px solid hsla(190, 39.68254%, 12.352941%, 1);
+  border-radius: var(--radius-control, 6px);
+  cursor: pointer;
+}
+.mobile-explore-radio .mobile-explore-chevron {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  min-height: 32px;
+  height: 32px;
+  padding: 0;
+  margin-right: 0;
+  background: hsla(40, 39.68254%, 12.352941%, 0.5);
+  border: 1px solid hsla(40, 39.68254%, 12.352941%, 1);
   border-radius: var(--radius-control, 6px);
   cursor: pointer;
 }
@@ -1743,6 +1803,17 @@ body.mobile-shell .mobile-explore-area {
     hsla(190, 50%, 27%, 1) 100%
   );
   --scene-card-shadow: inset 0 -2px 8px hsla(190, 60%, 28%, 0.25);
+}
+body.mobile-shell .mobile-explore-radio {
+  --scene-card-bg: hsla(40, 45%, 9%, 1);
+  --scene-card-border: linear-gradient(
+    180deg,
+    hsla(40, 50%, 23%, 1) 0%,
+    hsla(40, 45%, 19%, 1) 25%,
+    hsla(40, 45%, 19%, 1) 75%,
+    hsla(40, 50%, 26%, 1) 100%
+  );
+  --scene-card-shadow: inset 0 -2px 8px hsla(40, 60%, 28%, 0.25);
 }
 body.mobile-shell #scene-panel .mobile-scene-view :is(.mobile-scene-card, .mobile-scene-shot, .mobile-scene-editor-shot) {
   border: 1px solid transparent;
@@ -2341,7 +2412,7 @@ body.mobile-shell[data-mobile-sheet='layers'] #mobile-layers-filter button {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 25px;
+  height: 26px;
   padding: 0 0 1px 0;
   background: hsla(205.384615, 52%, 9.803922%, 1);
   border: 1px solid hsla(201.428571, 42.424242%, 25.882353%, 1);
@@ -2374,9 +2445,9 @@ body.mobile-shell[data-mobile-sheet='layers'] #mobile-layers-active-count {
 
 body.mobile-shell[data-mobile-sheet='layers'] #mobile-layers-filter #clear-selected-layers {
   flex: none;
-  width: 28px;
-  height: 28px;
-  margin-left: 0;
+  width: 26px;
+  height: 26px;
+  margin-left: 6px;
   border-color: hsla(0, 0%, 0%, 0);
   border-radius: var(--radius-control, 6px);
   background: hsla(0, 0%, 0%, 0);
@@ -2623,7 +2694,7 @@ body.mobile-shell.cockpit-mode #command-dock {
 
 /* Use pixel widths where supported; retain native thin scrollbars elsewhere. */
 @supports selector(::-webkit-scrollbar) {
-body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #mobile-weather) { scrollbar-width: auto; scrollbar-color: auto; }
+body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #radio-panel, #mobile-weather) { scrollbar-width: auto; scrollbar-color: auto; }
 }
 
 /* Floating scene transport; independent of the navigation sheets. */
@@ -3653,6 +3724,28 @@ body.mobile-shell[data-mobile-voice-visible]:not([data-mobile-sheet]) #mobile-de
 .mobile-explore-quick-label { min-width: 0; white-space: nowrap; }
 .mobile-explore-quick-action:is(:active, [data-explore-pressed], .active, [aria-pressed="true"]) .mobile-explore-icon { color: hsla(184, 100%, 69.215686%, 1); }
 
+.mobile-explore-content .mobile-explore-radio {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 52px;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: url('/patterns/radio-waves.svg') center / 100% 100% no-repeat padding-box, linear-gradient(var(--scene-card-bg), var(--scene-card-bg)) padding-box, var(--scene-card-border) border-box;
+  box-shadow: var(--scene-card-shadow);
+  font: 400 12px/1.4 var(--font-mono);
+  text-align: left;
+  text-transform: uppercase;
+}
+.mobile-explore-radio .mobile-explore-icon { width: 20px; height: 20px; }
+.mobile-explore-radio-label { display: grid; flex: 1; min-width: 0; gap: 4px; }
+.mobile-explore-radio-meta { display: flex; min-width: 0; text-transform: none; }
+.mobile-explore-radio-station { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mobile-explore-radio-status { flex: none; }
+.mobile-explore-radio-station:not([hidden]) + .mobile-explore-radio-status::before { content: ' · '; white-space: pre; }
+
 .mobile-explore-area .mobile-explore-chevron { margin-right: 0; }
 .mobile-explore-area-info { display: grid; flex: 1; min-width: 0; gap: 6px; }
 .mobile-explore-coordinates { font: 500 12px/1.5 var(--font-mono); }
@@ -3681,6 +3774,13 @@ body.mobile-shell[data-mobile-voice-visible]:not([data-mobile-sheet]) #mobile-de
 .mobile-explore-content button[data-explore-pressed] {
   background-color: var(--mobile-map-selected);
   border-color: var(--mobile-map-border);
+}
+
+.mobile-explore-content button.mobile-explore-radio:is(:active, [data-explore-pressed]) {
+  border-color: hsl(40, 60%, 40%);
+}
+.mobile-explore-content button.mobile-explore-area:is(:active, [data-explore-pressed]) {
+  border-color: hsl(190, 60%, 40%);
 }
 
 .mobile-explore-content button:focus-visible {

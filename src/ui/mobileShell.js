@@ -23,6 +23,7 @@ import { initMobileCameras } from './mobileCameras.js';
 import { initMobileTextMotion } from './mobileTextMotion.js';
 import { initMobileExplore } from './mobileExplore.js';
 import { initMobileWeather } from './mobileWeather.js';
+import { syncRadioPanelPlacement } from './radioPanelPlacement.js';
 
 export const MOBILE_SHELL_MEDIA_QUERY = '(max-width: 720px)';
 export const MOBILE_SHELL_CLASS = 'mobile-shell';
@@ -37,6 +38,7 @@ export const MOBILE_SHEET_PANELS = Object.freeze({
   scenes: Object.freeze(['scene-panel']),
   cameras: Object.freeze(['cctv-panel', 'street-level-panel']),
   context: Object.freeze(['global-context-panel']),
+  radio: Object.freeze(['radio-panel']),
   more: Object.freeze(['control-panel', 'pp-toggles']),
 });
 
@@ -201,7 +203,13 @@ function buildChrome(documentRef) {
   contextClose.append(contextCloseIcon);
   const contextRow = documentRef.createElement('div');
   contextRow.className = 'mobile-details-header mobile-sheet-header';
-  contextRow.append(contextHandle, contextClose);
+  const radioBack = documentRef.createElement('button');
+  radioBack.id = 'mobile-radio-back';
+  radioBack.type = 'button';
+  radioBack.className = 'mobile-sheet-control mobile-sheet-back';
+  radioBack.setAttribute('aria-label', t('Back'));
+  radioBack.hidden = true;
+  contextRow.append(radioBack, contextHandle, contextClose);
   contextHeader.append(contextRow);
   documentRef.getElementById('right-context-rail')?.append(contextHeader);
   documentRef.body.append(headerScrim, footerScrim, searchBar, tabBar, details);
@@ -240,6 +248,7 @@ export function initMobileShell({
   onCctvRetryFrame,
   readExploreView,
   readExploreWeather,
+  subscribeRadio,
   onExploreLocation,
   onExploreAction,
 } = {}) {
@@ -256,6 +265,8 @@ export function initMobileShell({
   const layersHandle = element('mobile-layers-handle');
   const layersClose = element('mobile-layers-close');
   const layersRoot = element('left-panel-stack');
+  const radioEntry = element('mobile-radio-receiver');
+  const radioBack = element('mobile-radio-back');
   const scenePanel = element('scene-panel');
   const layersList = element('data-toggles');
   const layersActiveCount = element('mobile-layers-active-count');
@@ -303,7 +314,7 @@ export function initMobileShell({
       onExploreLocation?.(view);
     },
     onQuickAction: (action, view) => {
-      const sheet = action === 'cameras' ? 'cameras' : 'context';
+      const sheet = action === 'cameras' ? 'cameras' : action === 'radio' ? 'radio' : 'context';
       setSheet(sheet);
       if (currentSheetOf(body) !== sheet) return;
       returnFocus = tabFor(sheet);
@@ -313,7 +324,7 @@ export function initMobileShell({
         tabFor('context')?.setAttribute('aria-expanded', 'false');
       }
       if (action === 'weather') return;
-      sheetPeek?.collapse();
+      if (action !== 'radio') sheetPeek?.collapse();
       return onExploreAction?.(action);
     },
     onNavigate: (sheet, sceneId) => {
@@ -452,7 +463,7 @@ export function initMobileShell({
     body.style.setProperty('--mobile-contacts-compact-height', Math.ceil(height) + 'px');
   };
   const setRailExpanded = (expanded) => {
-    if (!['cameras', 'context'].includes(currentSheetOf(body))) return;
+    if (!['cameras', 'context', 'radio'].includes(currentSheetOf(body))) return;
     clearContactsCompact();
     if (expanded) body.setAttribute('data-mobile-rail-expanded', '');
     else body.removeAttribute('data-mobile-rail-expanded');
@@ -603,6 +614,34 @@ export function initMobileShell({
     }
   };
 
+  let radioReturnScroll = 0;
+  let radioReturnExpanded = false;
+  const syncRadioHeader = () => {
+    const receiver = currentSheetOf(body) === 'radio' && body.hasAttribute('data-mobile-radio-receiver');
+    const railTitle = t(receiver ? 'RTL-SDR receiver' : currentSheetOf(body) === 'radio' ? 'Radio' : 'Context');
+    element('mobile-context-handle').querySelector('.mobile-sheet-title').textContent = railTitle;
+    element('mobile-context-handle').setAttribute('aria-label', t('Collapse') + ': ' + railTitle);
+    radioBack.hidden = !receiver;
+    radioEntry?.setAttribute('aria-expanded', String(receiver));
+  };
+  const setRadioReceiver = (open) => {
+    if (currentSheetOf(body) !== 'radio' || !element('sdr-radio-card') ||
+        open === body.hasAttribute('data-mobile-radio-receiver')) return;
+    const panel = element('radio-panel');
+    if (open) {
+      radioReturnScroll = panel.scrollTop;
+      radioReturnExpanded = body.hasAttribute('data-mobile-rail-expanded');
+    }
+    sheetPeek?.clear();
+    clearRailDrag();
+    body.toggleAttribute('data-mobile-radio-receiver', open);
+    if (!open) body.toggleAttribute('data-mobile-rail-expanded', radioReturnExpanded);
+    syncRadioHeader();
+    panel.scrollTop = open ? 0 : radioReturnScroll;
+    (open ? radioBack : radioEntry)?.focus({ preventScroll: true });
+    measureSheet();
+  };
+
   const present = (sheet) => {
     sheetPeek?.clear();
     clearContactsCompact();
@@ -612,6 +651,11 @@ export function initMobileShell({
     else body.removeAttribute(MOBILE_SHEET_ATTR);
     settingsPanel?.sync(sheet === 'more');
     camerasPanel?.sync(sheet === 'cameras');
+    body.removeAttribute('data-mobile-radio-receiver');
+    radioReturnScroll = 0;
+    radioReturnExpanded = false;
+    syncRadioHeader();
+    if (sheet === 'radio' && element('radio-panel')) element('radio-panel').scrollTop = 0;
     if (sheet !== 'layers') {
       clearTimeout(layersCloseTimer);
       layersCloseTimer = null;
@@ -643,7 +687,7 @@ export function initMobileShell({
 
   /** The first visible control of the sheet's first panel, for focus on open. */
   const sheetFocusTarget = (sheet) => {
-    const panel = element(sheet === 'more' ? 'mobile-settings' : sheet === 'cameras' ? 'mobile-cameras-chrome' : MOBILE_SHEET_PANELS[sheet][0]);
+    const panel = element(sheet === 'more' ? 'mobile-settings' : sheet === 'cameras' ? 'mobile-cameras-chrome' : sheet === 'radio' ? 'mobile-context-header' : MOBILE_SHEET_PANELS[sheet][0]);
     const controls =
       panel?.querySelectorAll?.(
         'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -724,6 +768,8 @@ export function initMobileShell({
   };
 
   const tabFor = (sheet) =>
+    sheet === 'radio' ? (returnFocus?.id === 'mobile-map-radio' && returnFocus.getClientRects().length && !returnFocus.closest?.('[inert]')
+      ? returnFocus : element('mobile-header-actions')?.querySelector('[aria-controls="mobile-search-bar"]')) :
     [...tabBar.querySelectorAll('[data-mobile-sheet]')].find(
       (button) => button.dataset.mobileSheet === sheet,
     );
@@ -789,6 +835,7 @@ export function initMobileShell({
       if (viewport && viewportContent !== null)
         viewport.setAttribute('content', viewportContent);
     }
+    syncRadioPanelPlacement(documentRef);
     tabBar.setAttribute('aria-hidden', String(!matches));
     mapControls?.setMobile(matches);
     camerasPanel?.setMobile(matches);
@@ -835,7 +882,15 @@ export function initMobileShell({
     if (body.hasAttribute('data-mobile-contacts-compact')) setRailExpanded(contactsWasExpanded);
     else sheetPeek?.collapse();
   });
-  listen(element('mobile-context-close'), 'click', () => transitionSheet(null, tabFor('context')));
+  listen(element('mobile-context-close'), 'click', () => transitionSheet(null, tabFor(currentSheetOf(body))));
+  if (radioEntry) listen(radioEntry, 'click', () => animateSheet(() => setRadioReceiver(true)));
+  listen(radioBack, 'click', () => animateSheet(() => setRadioReceiver(false)));
+  listen(documentRef, 'gev:radio-selected', () => {
+    if (!body.classList.contains(MOBILE_SHELL_CLASS)) return;
+    setSheet('radio');
+    setRadioReceiver(false);
+    if (currentSheetOf(body) === 'radio') returnFocus = tabFor('radio');
+  });
   const camerasPanel = initMobileCameras({
     documentRef,
     onClose: () => { returnFocus = tabFor('cameras') ?? returnFocus; setSheet(null); },
@@ -850,6 +905,14 @@ export function initMobileShell({
   const mapControls = initMobileMapControls({
     documentRef,
     openSearch: () => setSearchOpen(true),
+    openRadio: () => {
+      if (!body.classList.contains(MOBILE_SHELL_CLASS)) return;
+      setSheet('radio');
+      setRadioReceiver(false);
+      sheetPeek?.clear();
+      measureSheet();
+      if (currentSheetOf(body) === 'radio') returnFocus = element('mobile-map-radio');
+    },
     onVoiceOpen: () => { setSearchOpen(false); closeDetails(); setSheet(null); },
     openSettings: () => {
       if (currentSheetOf(body) === 'more') { settingsPanel?.dismiss(); return; }
@@ -868,6 +931,12 @@ export function initMobileShell({
     onMapInteraction: () => sheetPeek?.collapse(),
   });
 
+  const unsubscribeRadio = subscribeRadio?.((state) => {
+    explore.updateRadio(state);
+    mapControls?.updateRadio(state);
+  });
+  if (typeof unsubscribeRadio === 'function') removers.push(unsubscribeRadio);
+
   const media =
     typeof matchMedia === 'function'
       ? matchMedia(MOBILE_SHELL_MEDIA_QUERY)
@@ -883,23 +952,21 @@ export function initMobileShell({
     removers.push(() => media.removeListener(onChange));
   }
 
-  const transitionSheet = (sheet, button) => {
+  const animateSheet = (update) => {
     cancelTabTransition();
     const generation = tabTransitionGeneration;
-    const update = () => {
-      if (generation !== tabTransitionGeneration) return;
-      // Closing from the tab bar returns focus to the tab that was pressed.
-      if (!sheet) returnFocus = button;
-      setSheet(sheet, true);
-      if (sheet && currentSheetOf(body) === sheet) onTabOpened(sheet);
+    const apply = () => {
+      if (generation === tabTransitionGeneration) update();
     };
     if (!documentRef.startViewTransition ||
         matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      update();
+      documentRef.documentElement?.setAttribute('data-tab-transition', '');
+      apply();
+      documentRef.documentElement?.removeAttribute('data-tab-transition');
       return;
     }
     documentRef.documentElement.setAttribute('data-tab-transition', '');
-    const transition = documentRef.startViewTransition(update);
+    const transition = documentRef.startViewTransition(apply);
     tabTransition = transition;
     transition.finished.catch(() => {}).finally(() => {
       if (tabTransition !== transition) return;
@@ -907,6 +974,12 @@ export function initMobileShell({
       tabTransition = null;
     });
   };
+  const transitionSheet = (sheet, button) => animateSheet(() => {
+    // Closing from the tab bar returns focus to the tab that was pressed.
+    if (!sheet) returnFocus = button;
+    setSheet(sheet, true);
+    if (sheet && currentSheetOf(body) === sheet) onTabOpened(sheet);
+  });
   listen(tabBar, 'click', (event) => {
     const button = event.target?.closest?.('[data-mobile-sheet]');
     if (!button) return;
@@ -1250,7 +1323,7 @@ export function initMobileShell({
       )
         return;
       const root = sheetRoot(target, sheet);
-      const railHandle = sheet === 'context' && element('mobile-context-handle')?.contains(target);
+      const railHandle = ['context', 'radio'].includes(sheet) && element('mobile-context-handle')?.contains(target);
       if (!root || (!railHandle && scrolled(target, root))) return;
       const touch = event.touches[0];
       swipe = {
@@ -1334,6 +1407,7 @@ export function initMobileShell({
       if (dy < 64 || dy <= dx * 1.25) return;
       returnFocus = tabFor(pull.sheet) ?? returnFocus;
       if (pull.sheet === 'cameras' && camerasPanel) { camerasPanel.dismiss(); return; }
+      if (pull.sheet === 'radio') { transitionSheet(null, tabFor('radio')); return; }
       setSheet(null);
     },
     { passive: true },
@@ -1365,6 +1439,10 @@ export function initMobileShell({
     const sheet = currentSheetOf(body);
     if (!sheet || documentRef.querySelector('dialog[open]')) return;
     event.preventDefault();
+    if (sheet === 'radio' && body.hasAttribute('data-mobile-radio-receiver')) {
+      animateSheet(() => setRadioReceiver(false));
+      return;
+    }
     if (sheet === 'more') { settingsPanel?.dismiss(); return; }
     if (sheet === 'cameras' && camerasPanel) { camerasPanel.dismiss(); return; }
     returnFocus = tabFor(sheet) ?? returnFocus;
@@ -1434,6 +1512,7 @@ export function initMobileShell({
       placeClearLayers(false);
       for (const remove of removers.splice(0)) remove();
       body.classList.remove(MOBILE_SHELL_CLASS);
+      syncRadioPanelPlacement(documentRef);
       body.removeAttribute('data-mobile-search-typing');
       body.removeAttribute('data-mobile-layers-expanded');
       body.removeAttribute('data-mobile-scenes-expanded');

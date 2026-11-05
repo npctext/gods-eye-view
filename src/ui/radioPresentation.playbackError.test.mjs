@@ -16,7 +16,7 @@ function el() {
   };
 }
 
-function render(audioError) {
+function render(audioError, overrides = {}) {
   globalThis.document = { getElementById: () => null, activeElement: null };
   const host = {
     destroyed: false,
@@ -37,6 +37,7 @@ function render(audioError) {
     filteredCount: 1,
     stationCount: 1,
     volume: 1,
+    ...overrides,
   });
   return host._radioPlaybackState.textContent;
 }
@@ -68,4 +69,21 @@ test('radio playback errors stay English', () => {
     assert.equal(render(message), message);
   }
   assert.equal(render(null), 'Broadcaster stream unavailable');
+});
+
+test('playing Radio reports voice mute and restoration instead of ordinary playback', () => {
+  const state = { audioState: 'playing', selected: { name: 'Test Radio' }, selectedIndex: 0 };
+  assert.equal(render(null, { ...state, voiceDucked: true }), 'Muted for voice');
+  assert.equal(render(null, { ...state, voiceRestoring: true }), 'Restoring volume…');
+  assert.equal(render(null, state), 'Playing Test Radio');
+});
+
+test('voice volume flags do not obscure pause, stop, connection or playback failure', () => {
+  for (const flags of [{ voiceDucked: true }, { voiceRestoring: true }]) {
+    assert.equal(render(null, { audioState: 'paused', ...flags }), 'Paused station');
+    assert.equal(render(null, { audioState: 'stopped', ...flags }), 'Ready — playback starts only from your action');
+    assert.equal(render(null, { audioState: 'loading', ...flags }), 'Connecting directly to broadcaster…');
+    assert.equal(render(null, { audioState: 'buffering', ...flags }), 'Buffering broadcaster stream…');
+    assert.equal(render('Broadcaster stream could not be started.', flags), 'Broadcaster stream could not be started.');
+  }
 });

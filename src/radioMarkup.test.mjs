@@ -324,9 +324,11 @@ test('Radio is nested inside Context with separate disclosure and power controls
   assert.match(radioControlsSource, /classList\.remove\('radio-broadcasting'\)/);
   assert.match(radioBindings, /this\.radio\.getTunerStations\(750\)/);
   assert.match(radioBindings, /radioTunerPointerPosition\(/);
-  // Only the Cyber skin promotes Radio to a peer panel. Other themes retain
-  // the embedded Context layout; theme round-trip behavior has separate tests.
-  const baseCss = css.replace(readFileSync(new URL('./ui/styles/cyber.css', import.meta.url), 'utf8'), '');
+  // The phone sheet promotes Radio to a peer panel; desktop Context keeps
+  // its embedded controls. Placement round trips have separate tests.
+  const mobileCss = readFileSync(new URL('./ui/styles/mobile-shell.css', import.meta.url), 'utf8');
+  const baseCss = css.replace(readFileSync(new URL('./ui/styles/cyber.css', import.meta.url), 'utf8'), '').replace(mobileCss, '');
+  assert.match(mobileCss, /body\.mobile-shell\[data-mobile-sheet='radio'\] #right-context-rail > #radio-panel/);
   assert.doesNotMatch(baseCss, /#right-context-rail\s*>\s*#radio-panel/);
   assert.match(css, /#global-context-panel #radio-panel\.collapsed/);
   assert.doesNotMatch(css, /\.context-radio-dock\.active:hover \.context-radio-mini/);

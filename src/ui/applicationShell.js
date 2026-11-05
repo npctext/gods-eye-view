@@ -897,6 +897,7 @@ export class StyleManager extends ShellFacade {
       onMapZoom: (direction) => this._cameraOrientationControls?.zoom(direction),
       onMapLocation: () => this._locateMobileMap(),
       onExploreAction: (action) => this._openExploreAction(action),
+      subscribeRadio: (listener) => this.services.radioLayer?.subscribe?.(listener),
       onExploreLocation: (view) => this._flyToExploreView(view),
       readExploreWeather: (view, options) => this._weatherService.getConditions(view.latitude, view.longitude, options),
       readExploreView: () => {
@@ -947,17 +948,17 @@ export class StyleManager extends ShellFacade {
       if (!this._dataManager?.layers?.has(layerId)) return false;
       const enabled = await this._dataManager.setEnabled(layerId, true, { origin: 'user', notificationToken });
       if (enabled === false) return false;
-      const sheet = action === 'cameras' ? 'cameras' : 'context';
+      const sheet = action === 'cameras' ? 'cameras' : 'radio';
       if (this._disposed || generation !== this._exploreActionGeneration || this._mobileShell?.getSheet() !== sheet || !this._dataManager.isEnabled(layerId)) return true;
       if (action === 'cameras') {
         this.services.cctvLayer.focusNearest({ focus: false });
       } else {
         const radio = this.services.radioLayer;
-        if (!['playing', 'loading', 'buffering'].includes(radio.getUIState()?.audioState)) {
+        const state = radio.getUIState();
+        if (!state?.selected && !['playing', 'loading', 'buffering'].includes(state?.audioState)) {
           radio.selectRequestedStation({}, { autoplay: false, origin: 'user' });
         }
         this.setPanelCollapsed('radio-panel', false, { explicit: true });
-        await this._radioControls?._revealRadioPanelInsideContext();
       }
       return true;
     }, message);

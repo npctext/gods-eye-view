@@ -305,18 +305,17 @@ export function renderRadioState(state) {
         : t('Radio off'),
       loading: t('Connecting directly to broadcaster…'),
       buffering: t('Buffering broadcaster stream…'),
-      playing: t('Playing {station}', { station: stationName }),
+      playing: state.voiceDucked
+        ? t('Muted for voice')
+        : state.voiceRestoring
+          ? t('Restoring volume…')
+          : t('Playing {station}', { station: stationName }),
       paused: t('Paused {station}', { station: stationName }),
       // Playback keeps its messages in English (msg()); shown in the UI language.
       error: state.audioError
         ? t(state.audioError)
         : t('Broadcaster stream unavailable'),
     };
-    const voiceSuffix = state.voiceDucked
-      ? t(' · muted during voice interaction')
-      : state.voiceRestoring
-        ? t(' · restoring volume after voice')
-        : '';
     const tuningSuffix = state.tuningAwaitingStationId
       ? state.audioState === 'error'
         ? t(' · static indicates no broadcaster audio')
@@ -337,7 +336,7 @@ export function renderRadioState(state) {
       : null;
     // Directory errors are msg() literals from the radio layer's ingestion.
     const directoryError = state.error ? t(state.error) : null;
-    this._radioPlaybackState.textContent = `${uncertainMessage || unavailable || lifecycleMessage || directoryError || messages[state.audioState] || t('Ready')}${tuningSuffix}${voiceSuffix}${catalogSuffix}${outsideFilter}`;
+    this._radioPlaybackState.textContent = `${uncertainMessage || unavailable || lifecycleMessage || directoryError || messages[state.audioState] || t('Ready')}${tuningSuffix}${catalogSuffix}${outsideFilter}`;
     this._radioPlaybackState.classList.toggle(
       'error',
       Boolean(
@@ -352,6 +351,7 @@ export function renderRadioState(state) {
     !enabled &&
     !transitioning &&
     !this.actions.preservePanelStateDuringClear() &&
+    globalThis.document?.body?.getAttribute?.('data-mobile-sheet') !== 'radio' &&
     !this._radioPanel.classList.contains('collapsed')
   ) {
     this.actions.setPanelCollapsed('radio-panel', true);

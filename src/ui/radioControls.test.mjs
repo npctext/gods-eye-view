@@ -172,3 +172,53 @@ test('destruction releases an active tuner pointer after revoking listeners', ()
     f.cleanup();
   }
 });
+
+test('explicit Enable reveals controls inside the mobile Radio scroller without opening Context', async () => {
+  const f = fixture();
+  const previousFrame = globalThis.requestAnimationFrame;
+  globalThis.requestAnimationFrame = callback => callback();
+  try {
+    f.document.body = { getAttribute: name => name === 'data-mobile-sheet' ? 'radio' : null };
+    const panel = f.controls._radioPanel;
+    panel.scrollTop = 0;
+    panel.scrollHeight = 1000;
+    panel.clientHeight = 300;
+    panel.getBoundingClientRect = () => ({ top: 0, bottom: 300 });
+    panel.querySelector = selector => ({ getBoundingClientRect: () => selector === '.radio-directory-row' ? { top: 200 } : { bottom: 600 } });
+    const scrolls = [];
+    panel.scrollTo = options => scrolls.push(options);
+    f.controls._radioState = { enabled: true };
+    assert.equal(await f.controls._revealRadioControlsAfterExplicitEnable(f.enable), true);
+    assert.deepEqual(scrolls, [{ top: 310, behavior: 'smooth' }]);
+    assert.equal(f.calls.length, 0, 'presentation must not change playback or open Context');
+  } finally {
+    globalThis.requestAnimationFrame = previousFrame;
+    f.cleanup();
+  }
+});
+
+test('a delayed Enable reveal does not scroll the receiver view', async () => {
+  const f = fixture();
+  const previousFrame = globalThis.requestAnimationFrame;
+  const frames = [];
+  globalThis.requestAnimationFrame = callback => frames.push(callback);
+  let receiver = false;
+  try {
+    f.document.body = {
+      getAttribute: name => name === 'data-mobile-sheet' ? 'radio' : null,
+      hasAttribute: name => name === 'data-mobile-radio-receiver' && receiver,
+    };
+    f.controls._radioPanel.querySelector = () => ({});
+    f.controls._radioState = { enabled: true };
+    const reveal = f.controls._revealRadioControlsAfterExplicitEnable(f.enable);
+    receiver = true;
+    frames.shift()();
+    frames.shift()();
+    assert.equal(await reveal, false);
+    assert.equal(await f.controls._revealRadioControlsAfterExplicitEnable(f.enable), false);
+    assert.equal(frames.length, 0);
+  } finally {
+    globalThis.requestAnimationFrame = previousFrame;
+    f.cleanup();
+  }
+});

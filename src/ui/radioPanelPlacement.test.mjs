@@ -82,6 +82,18 @@ test('all themes keep the same Radio controls nested in Context', () => {
     assert.deepEqual(contextHeader.children, [dock, contextCollapse]);
     assert.equal(mini.parentElement, dock);
   }
+  let mobile = true;
+  doc.body = { classList: { contains: name => name === 'mobile-shell' && mobile } };
+  syncRadioPanelPlacement(doc);
+  assert.equal(panel.parentElement, rail, 'mobile reuses the existing controls in the sheet rail');
+  const mobileMoves = panel.moves;
+  doc.documentElement.dataset.uiTheme = 'cyber';
+  syncRadioPanelPlacement(doc);
+  assert.equal(panel.parentElement, rail, 'theme changes keep the mobile owner');
+  assert.equal(panel.moves, mobileMoves, 'mobile placement is idempotent');
+  mobile = false;
+  syncRadioPanelPlacement(doc);
+  assert.equal(panel.parentElement, body, 'desktop restores the same controls to Context');
   // Recover a hierarchy left by the previous Cyber implementation without
   // recreating the player, changing playback, or mutating collapse state.
   rail.append(panel);

@@ -120,7 +120,7 @@ export function initMobileSheetPeek({ documentRef, tabs, onChange, onClose }) {
         body.matches('[data-mobile-layers-dragging], [data-mobile-scenes-dragging]')) return false;
     const roots = rootsFor(sheet);
     if (!roots.length || roots.some((node) => node.style.transform)) return false;
-    const panel = element(sheet === 'scenes' ? 'scene-panel' : sheet === 'layers' ? 'data-panel' : sheet === 'more' ? 'mobile-settings' : sheet === 'context' ? 'mobile-context-header' : '');
+    const panel = element(sheet === 'scenes' ? 'scene-panel' : sheet === 'layers' ? 'data-panel' : sheet === 'more' ? 'mobile-settings' : ['context', 'radio'].includes(sheet) ? 'mobile-context-header' : '');
     restoreButton.setAttribute('aria-controls', roots.map((node) => node.id).join(' '));
     restoreBar.hidden = false;
     body.setAttribute('data-mobile-sheet-peek', '');

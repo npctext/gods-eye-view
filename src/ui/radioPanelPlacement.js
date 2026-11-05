@@ -1,7 +1,12 @@
-/** Keep Radio in Context in every theme, reusing the same playback controls. */
+/** Reuse Radio controls in the phone sheet or desktop Context, in every theme. */
 export function syncRadioPanelPlacement(doc) {
   if (!doc?.getElementById) return;
   const panel = doc.getElementById('radio-panel');
+  const mobileRail = doc.body?.classList?.contains('mobile-shell') && doc.getElementById('right-context-rail');
+  if (panel && mobileRail) {
+    if (panel.parentElement !== mobileRail) mobileRail.append(panel);
+    return;
+  }
   const context = doc.getElementById('global-context-panel');
   const dock = doc.getElementById('context-radio-dock');
   const mini = doc.getElementById('context-radio-mini');

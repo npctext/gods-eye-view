@@ -8,7 +8,7 @@ const OPTIONS = [
   ['share', 'Share this view'],
   ['location', 'My location'],
 ];
-const SOURCE_IDS = { north: 'north-up-view', tilt: 'tilt-map-view', globe: 'reset-globe-view', share: 'share-btn', radio: 'radio-enable-btn' };
+const SOURCE_IDS = { north: 'north-up-view', tilt: 'tilt-map-view', globe: 'reset-globe-view', share: 'share-btn' };
 const STORAGE_KEY = 'gev.mobile.map-buttons';
 const clamp = (value) => Math.max(0, Math.min(1, value));
 
@@ -24,7 +24,7 @@ export function mapControlVisibility(top, height, boundary) {
   return clamp((top + height - boundary) / height);
 }
 
-export function initMobileMapControls({ documentRef, openSearch, openSettings, onVoiceOpen, onMapTool, zoom, locate, onMapInteraction }) {
+export function initMobileMapControls({ documentRef, openSearch, openRadio, openSettings, onVoiceOpen, onMapTool, zoom, locate, onMapInteraction }) {
   const win = documentRef.defaultView;
   if (!win?.requestAnimationFrame) return null;
   const body = documentRef.body;
@@ -75,6 +75,7 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
   let pressedControl = null;
   let heldLayout = null;
   let northVisible = false;
+  let radioVisible = false;
   let northHideTimer = null;
   try { pins = sanitizeMapPins(JSON.parse(win.localStorage.getItem(STORAGE_KEY))); } catch { /* Browser storage is optional. */ }
 
@@ -123,12 +124,10 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     return node;
   };
   const radioSlot = slot('radio', primaryRow);
-  const radio = button('radio', 'Disable Radio', radioSlot, () => {
-    if (sources.radio?.getAttribute('aria-pressed') === 'true' && sources.radio.getAttribute('aria-disabled') !== 'true') run('radio');
-  });
+  const radio = button('radio', 'Open Radio', radioSlot, () => { closeMenu(); openRadio?.(); });
+  radio.setAttribute('aria-controls', 'radio-panel');
   radio.id = 'mobile-map-radio';
   make('span', 'mobile-map-radio-indicator', radio).setAttribute('aria-hidden', 'true');
-  proxies.set('radio', [radio]);
   const north = button('north', 'Reset map to north up', slot('north', primaryRow), () => run('north'));
   north.classList.add('mobile-map-north');
   north.setAttribute('data-north-hidden', '');
@@ -302,7 +301,7 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     let stackBase = null;
     for (const node of slots) {
       const key = node.dataset.control;
-      setSlotVisible(node, key === 'radio' ? Boolean(radioPlaying()) : !OPTIONS.some(([id]) => id === key) || pins.includes(key));
+      setSlotVisible(node, key === 'radio' ? radioVisible : !OPTIONS.some(([id]) => id === key) || pins.includes(key));
       node.classList.remove('mobile-map-stack-base');
       if (node.parentElement === toolbar && !node.hidden) stackBase = node;
     }
@@ -327,7 +326,6 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
   }
 
   const title = element('title-bar');
-  const radioPlaying = () => sources.radio?.getAttribute('aria-pressed') === 'true' && title?.classList.contains('radio-broadcasting');
   const sheetNodes = ['left-panel-stack', 'right-context-rail', 'mobile-details', 'mobile-settings', 'command-dock'].map(element).filter(Boolean);
   const visual = (node, amount) => {
     const value = Math.round(amount * 1000) / 1000;
@@ -363,7 +361,7 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     }
   };
   function draw() {
-    if (slotStates.get(radioSlot)?.visible !== Boolean(radioPlaying())) renderPins();
+    radio.setAttribute('aria-expanded', String(body.getAttribute('data-mobile-sheet') === 'radio'));
     const searchOpen = body.hasAttribute('data-mobile-search-open');
     search.setAttribute('aria-expanded', String(searchOpen));
     settings.setAttribute('aria-expanded', String(body.getAttribute('data-mobile-sheet') === 'more'));
@@ -372,10 +370,6 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
       const source = sources[key];
       for (const node of nodes) {
         node.disabled = key === 'location' ? locating : !source || source.disabled;
-        if (key === 'radio') {
-          node.disabled = !source || source.disabled || source.getAttribute('aria-disabled') === 'true';
-          node.setAttribute('aria-busy', String(node.disabled));
-        }
         if (key === 'location') node.setAttribute('aria-busy', String(locating));
         if (key === 'tilt') node.setAttribute('aria-pressed', source?.getAttribute('data-top-down') || 'false');
       }
@@ -501,6 +495,15 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
   renderPins();
   closeMenu();
   return {
+    updateRadio(state) {
+      radioVisible = Boolean(state?.enabled);
+      radio.dataset.radioState = state?.audioState || 'stopped';
+      radio.dataset.radioMuted = String(Boolean(state?.voiceDucked || state?.voiceRestoring));
+      const label = [t('Open Radio'), state?.selected?.name].filter(Boolean).join(' · ');
+      radio.setAttribute('aria-label', label);
+      radio.title = label;
+      renderPins();
+    },
     setMobile(value) {
       mobile = value;
       if (value) wake();

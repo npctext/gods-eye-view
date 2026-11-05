@@ -59,14 +59,16 @@ export class RadioControls {
    * @returns {Promise<boolean>} Whether the internal scroller moved.
    */
   async _revealRadioControlsAfterExplicitEnable(trigger) {
-    const contextPanel = document.getElementById('global-context-panel');
-    const scroller =
+    const mobileRadio = document.body?.getAttribute?.('data-mobile-sheet') === 'radio';
+    const contextPanel = mobileRadio ? this._radioPanel : document.getElementById('global-context-panel');
+    const scroller = mobileRadio ? this._radioPanel :
       (document.documentElement?.dataset.uiTheme === 'cyber' &&
         contextPanel?.querySelector('.cyber-panel-body')) ||
       contextPanel?.querySelector('.global-context-panel-inner');
     const directory = this._radioPanel?.querySelector('.radio-directory-row');
     const transport = this._radioPanel?.querySelector('.radio-transport');
     if (
+      document.body?.hasAttribute?.('data-mobile-radio-receiver') ||
       !contextPanel ||
       contextPanel.classList.contains('collapsed') ||
       !scroller ||
@@ -79,7 +81,8 @@ export class RadioControls {
     await new Promise((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(resolve)),
     );
-    if (this.destroyed || !this._radioState?.enabled || !trigger?.isConnected)
+    if (this.destroyed || !this._radioState?.enabled || !trigger?.isConnected ||
+        document.body?.hasAttribute?.('data-mobile-radio-receiver'))
       return false;
 
     const viewport = scroller.getBoundingClientRect();
