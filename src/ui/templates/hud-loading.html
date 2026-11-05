@@ -3,9 +3,77 @@
 
   <!-- Loading screen -->
   <div id="loading-screen">
+    <svg class="loader-art" viewBox="0 0 430 932" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+      <defs>
+        <path id="loader-globe-orbit-a" d="M-40 820C92 680 311 708 465 884" pathLength="100" />
+        <path id="loader-globe-orbit-b" d="M-25 885C160 715 330 735 464 810" pathLength="100" />
+        <path id="loader-orbit-route" d="M-65 228C100.333 85.3334 286.667 60.6667 494 154" pathLength="100" />
+        <mask id="loader-globe-points" maskUnits="userSpaceOnUse" x="0" y="630" width="430" height="302" style="mask-type: alpha;">
+          <use href="/loading/orbital-horizon.svg#Vector_50" />
+          <use href="/loading/orbital-horizon.svg#Vector_51" />
+          <use href="/loading/orbital-horizon.svg#Vector_52" />
+          <use href="/loading/orbital-horizon.svg#Vector_53" />
+          <use href="/loading/orbital-horizon.svg#Vector_54" />
+          <use href="/loading/orbital-horizon.svg#Vector_55" />
+        </mask>
+        <linearGradient id="loader-globe-wave" x1="0" y1="0" x2="0" y2="1">
+          <stop stop-color="#8bb8c2" stop-opacity="0" />
+          <stop offset="0.55" stop-color="#8bb8c2" stop-opacity="0.65" />
+          <stop offset="1" stop-color="#8bb8c2" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      <image class="loader-art-static" href="/loading/orbital-horizon.svg" x="0" y="0" width="430" height="932" />
+      <image class="loader-art-rotating" href="/loading/orbital-backdrop.svg" x="0" y="0" width="430" height="932" display="none" />
+      <g mask="url(#loader-globe-points)">
+        <rect class="loader-globe-wave" x="0" y="630" width="430" height="92" fill="url(#loader-globe-wave)" />
+      </g>
+      <use class="loader-orbit-trail" href="#loader-orbit-route" style="--trail-length: 6; opacity: 0.2;" />
+      <use class="loader-orbit-trail" href="#loader-orbit-route" style="--trail-length: 2; opacity: 0.55;" />
+      <g class="loader-orbit-traveller" style="offset-path: path('M-65 228C100.333 85.3334 286.667 60.6667 494 154');">
+        <circle r="4" fill="none" stroke="#69b3bd" stroke-width="0.6" opacity="0.45" />
+        <circle r="1.8" fill="#8bb8c2" />
+      </g>
+      <g class="loader-globe-orbit" style="--orbit-duration: 11s; --orbit-delay: -3s;">
+        <use class="loader-orbit-trail" href="#loader-globe-orbit-a" style="--trail-length: 5; opacity: 0.2;" />
+        <use class="loader-orbit-trail" href="#loader-globe-orbit-a" style="--trail-length: 2; opacity: 0.55;" />
+        <g class="loader-orbit-traveller" style="offset-path: path('M-40 820C92 680 311 708 465 884');">
+          <circle r="4" fill="none" stroke="#69b3bd" stroke-width="0.6" opacity="0.45" />
+          <circle r="1.8" fill="#8bb8c2" />
+        </g>
+      </g>
+      <g class="loader-globe-orbit" style="--orbit-duration: 14s; --orbit-delay: -9s;">
+        <use class="loader-orbit-trail" href="#loader-globe-orbit-b" style="--trail-length: 5; opacity: 0.2;" />
+        <use class="loader-orbit-trail" href="#loader-globe-orbit-b" style="--trail-length: 2; opacity: 0.55;" />
+        <g class="loader-orbit-traveller" style="offset-path: path('M-25 885C160 715 330 735 464 810');">
+          <circle r="4" fill="none" stroke="#69b3bd" stroke-width="0.6" opacity="0.45" />
+          <circle r="1.8" fill="#8bb8c2" />
+        </g>
+      </g>
+      <image href="/loading/grid-markers.svg" x="81" y="121" width="268" height="453" />
+    </svg>
+    <canvas class="loader-globe-canvas" width="430" height="932" aria-hidden="true"></canvas>
     <div class="loader-content">
+      <svg class="loader-mobile-logo" width="112" height="75.15" viewBox="0 0 112 75.15" fill="none" aria-hidden="true" focusable="false">
+        <defs>
+          <radialGradient id="loader-eye-glow">
+            <stop stop-color="#58aab8" stop-opacity="0.55" />
+            <stop offset="0.5" stop-color="#328b9d" stop-opacity="0.2" />
+            <stop offset="1" stop-color="#328b9d" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+        <ellipse class="loader-eye-glow" cx="56" cy="67" rx="64" ry="31" fill="url(#loader-eye-glow)" />
+        <use class="loader-logo-arcs" href="/loading/logo.svg#outer_eye" />
+        <use href="/loading/logo.svg#inner_eye" />
+        <use href="/loading/logo.svg#globe" />
+        <use href="/loading/logo.svg#globe_cage" />
+      </svg>
       <span class="loader-logo brand-logo" data-logo-gaze data-logo-src="/logo.svg" aria-hidden="true"><img src="/logo.svg" alt="" /></span>
       <h2 translate="no">GOD'S EYE <span class="title-accent">VIEW</span></h2>
-      <p class="loader-status" data-i18n>Initializing photorealistic world...</p>
+      <p class="loader-status" role="status" aria-live="polite" data-i18n>Initializing photorealistic world...</p>
+      <div class="loader-progress" aria-hidden="true">
+        <img src="/loading/progress-track.svg" alt="" />
+        <span class="loader-progress-track"><span class="loader-progress-segment"></span></span>
+      </div>
     </div>
   </div>
+  <script defer src="/loading/globe.js"></script>

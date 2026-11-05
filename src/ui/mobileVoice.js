@@ -47,6 +47,11 @@ export function initMobileVoice({ documentRef, trigger, onReveal, readCommands }
   const retry = button('retry', '<path d="M20 11a8 8 0 1 0-2 6M20 4v7h-7"/>');
   const retryLabel = make('span', 'mobile-voice-action-label', retry);
   const slot = make('div', 'mobile-voice-content', panel);
+  slot.id = 'mobile-voice-content';
+  const expand = make('button', 'mobile-voice-expand', panel);
+  expand.type = 'button';
+  expand.setAttribute('aria-controls', slot.id);
+  expand.hidden = true;
   const end = make('button', 'mobile-sheet-control mobile-sheet-close', heading);
   end.type = 'button';
   end.dataset.voiceAction = 'end';
@@ -67,6 +72,7 @@ export function initMobileVoice({ documentRef, trigger, onReveal, readCommands }
   let frame = 0;
   let activeBefore = false;
   let opened = false;
+  let expanded = false;
   let disposed = false;
   let meterSource = null;
   let meterBars = [];
@@ -128,6 +134,7 @@ export function initMobileVoice({ documentRef, trigger, onReveal, readCommands }
     if (activeBefore && available && state === 'idle') opened = false;
     activeBefore = mobile && active;
     const visible = mobile && opened && !sheetOpen();
+    attr(panel, 'data-expanded', expanded ? '' : null);
     panel.classList.toggle('is-visible', visible);
     panel.inert = !visible;
     attr(panel, 'aria-hidden', !visible);
@@ -159,6 +166,9 @@ export function initMobileVoice({ documentRef, trigger, onReveal, readCommands }
     if (visible && active && presentation && (!presentation.panelOpen || presentation.view !== 'preview'))
       detail.select('preview', { automatic: true });
     slot.hidden = !active;
+    expand.hidden = !visible || !active || (!expanded && slot.scrollHeight <= slot.clientHeight + 1);
+    attr(expand, 'aria-expanded', expanded);
+    text(expand, t(expanded ? 'Collapse panel' : 'Expand panel'));
     error.hidden = !failed;
     text(error, failed ? source?.querySelector('#gev-voice-error-detail')?.textContent || t('Voice could not be started.') : '');
     const nativePreview = source?.querySelector('#gev-voice-panel');
@@ -186,25 +196,35 @@ export function initMobileVoice({ documentRef, trigger, onReveal, readCommands }
   }
   const start = () => {
     opened = true;
+    expanded = false;
     onReveal?.();
     const owner = commands();
     if (owner?.session && !owner.session.isActive()) owner.ui?.button?.click();
     sync();
   };
-  const stop = () => {
+  const stop = (restoreFocus = true) => {
     opened = false;
+    expanded = false;
     commands()?.voicePanel?.close();
     commands()?.session?.stop();
-    trigger.focus({ preventScroll: true });
+    if (restoreFocus) trigger.focus({ preventScroll: true });
     sync();
   };
   const toggle = () => {
     const reveal = !opened || sheetOpen();
+    if (!reveal) { stop(); return; }
+    expanded = false;
     if (reveal && commands()?.session?.state === 'idle') { start(); return; }
     opened = reveal;
     if (opened) onReveal?.();
     sync();
   };
+  const onScenePlay = () => {
+    if (body.classList.contains('mobile-shell') && (opened || commands()?.session?.isActive() || commands()?.session?.state === 'error'))
+      stop(false);
+  };
+  documentRef.addEventListener('gev:mobile-scene-play', onScenePlay);
+  expand.addEventListener('click', () => { expanded = !expanded; sync(); });
   trigger.addEventListener('click', toggle);
   retry.addEventListener('click', start);
   end.addEventListener('click', stop);
@@ -217,6 +237,7 @@ export function initMobileVoice({ documentRef, trigger, onReveal, readCommands }
     observer.disconnect();
     resize.disconnect();
     meterObserver.disconnect();
+    documentRef.removeEventListener('gev:mobile-scene-play', onScenePlay);
     trigger.removeEventListener('click', toggle);
     restore();
     headerWrap.replaceWith(headerIcon);

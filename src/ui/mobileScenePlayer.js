@@ -65,7 +65,11 @@ export function mountMobileScenePlayer(player, documentRef = globalThis.document
     return start + ((shots[index + 1]?.start ?? 1) - start) * (position - index);
   };
   const draw = (state) => {
+    const startsPlayback = state.visible && ['loading', 'playing'].includes(state.status) &&
+      (!snapshot.visible || !['loading', 'playing'].includes(snapshot.status) || snapshot.sceneId !== state.sceneId);
     snapshot = state;
+    if (startsPlayback && documentRef.body.classList.contains('mobile-shell'))
+      documentRef.dispatchEvent(new documentRef.defaultView.CustomEvent('gev:mobile-scene-play'));
     if (root.dataset.state !== state.status) root.dataset.state = state.status;
     root.classList.toggle('is-visible', state.visible);
     root.inert = !state.visible;
@@ -151,8 +155,16 @@ export function mountMobileScenePlayer(player, documentRef = globalThis.document
   for (const event of interactions) documentRef.addEventListener(event, onInteraction, { capture: true, passive: true });
   documentRef.body.append(root);
   const unsubscribe = player.subscribe(draw);
+  const resize = new documentRef.defaultView.ResizeObserver(() => {
+    const height = root.offsetHeight + 'px';
+    if (documentRef.body.style.getPropertyValue('--mobile-scene-player-height') !== height)
+      documentRef.body.style.setProperty('--mobile-scene-player-height', height);
+  });
+  resize.observe(root);
   return { destroy() {
     unsubscribe();
+    resize.disconnect();
+    documentRef.body.style.removeProperty('--mobile-scene-player-height');
     disposeSplitFlap(title);
     documentRef.removeEventListener('gev:mobile-voice-start', onVoiceStart);
     documentRef.removeEventListener('keydown', onKey);
