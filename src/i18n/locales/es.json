@@ -3051,5 +3051,22 @@
   "Mute microphone": "Silenciar micrófono",
   "Cancel connection": "Cancelar conexión",
   "End conversation": "Finalizar conversación",
-  "Save map diagnostics": "Guardar diagnóstico del mapa"
+  "Save map diagnostics": "Guardar diagnóstico del mapa",
+  "Explore": "Explorar",
+  "Places": "Lugares",
+  "Search for a place, address or coordinates.": "Busca un lugar, una dirección o coordenadas.",
+  "Search on map": "Buscar en el mapa",
+  "Find a place or explore map data.": "Busca un lugar o explora los datos del mapa.",
+  "Current map view": "Vista actual del mapa",
+  "Open context": "Abrir contexto",
+  "Quick locations": "Ubicaciones rápidas",
+  "Try a search": "Prueba una búsqueda",
+  "Eiffel Tower": "Torre Eiffel",
+  "Search places or coordinates": "Lugar o coordenadas",
+  "Searching…": "Buscando…",
+  "No ground in view": "No se ve la superficie",
+  "Active layers: {count}": "Capas activas: {count}",
+  "World events": "Eventos del mundo",
+  "View all": "Ver todo",
+  "Archive": "Archivo"
 }

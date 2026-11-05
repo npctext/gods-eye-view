@@ -2,11 +2,11 @@
 #mobile-cameras-chrome { display: none; }
 
 body.mobile-shell[data-mobile-sheet='cameras'] #right-context-rail {
-  height: var(--mobile-sheet-max-height);
+  height: 45dvh;
   gap: 0;
   padding: 0;
   overflow: hidden;
-  transition: max-height var(--mobile-sheet-animation-duration) ease, translate var(--mobile-sheet-animation-duration) ease, transform var(--mobile-sheet-animation-duration) ease;
+  transition: max-height var(--mobile-sheet-animation-duration) ease, height var(--mobile-sheet-animation-duration) ease, translate var(--mobile-sheet-animation-duration) ease, transform var(--mobile-sheet-animation-duration) ease;
 }
 body.mobile-shell[data-mobile-sheet='cameras'] #right-context-rail.mobile-cameras-dragging { transition: none; }
 body.mobile-shell[data-mobile-sheet='cameras'] #right-context-rail > #mobile-cameras-chrome { display: block; flex: none; }
@@ -19,14 +19,14 @@ body.mobile-shell[data-mobile-sheet='cameras'] #right-context-rail > :is(#cctv-p
   --font-mono: var(--font-plex-mono);
 }
 body.mobile-shell[data-mobile-sheet='cameras'] #right-context-rail > :is(#cctv-panel, #street-level-panel).mobile-camera-pane[hidden] { display: none; }
-body.mobile-shell #mobile-cameras-chrome .mobile-cameras-header { position: relative; }
+body.mobile-shell #mobile-cameras-chrome .mobile-cameras-header { position: relative; padding-top: 14px; }
 body.mobile-shell #mobile-cameras-chrome .mobile-cameras-collapse {
-  position: relative;
+  position: static;
   display: flex;
-  align-items: flex-end;
-  width: 100%;
-  height: 64px;
-  padding: 24px 64px 14px 16px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
   border: 0;
   background: none;
   text-align: left;
@@ -34,7 +34,7 @@ body.mobile-shell #mobile-cameras-chrome .mobile-cameras-collapse {
   cursor: pointer;
 }
 body.mobile-shell #mobile-cameras-chrome .mobile-details-handle { position: absolute; top: 0; left: 0; width: 100%; }
-body.mobile-shell #mobile-cameras-chrome .mobile-sheet-close { position: absolute; top: 17px; right: 10px; width: 44px; height: 44px; }
+body.mobile-shell #mobile-cameras-chrome .mobile-sheet-close { flex: none; }
 body.mobile-shell #mobile-cameras-chrome .mobile-cameras-tabs { margin: 0 16px 14px; }
 body.mobile-shell #right-context-rail > :is(#cctv-panel, #street-level-panel).mobile-camera-pane > :is(.cctv-panel-inner, .street-level-panel-inner) {
   display: flex;

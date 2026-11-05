@@ -1798,3 +1798,162 @@ test('Next scene starts the next non-empty scene from zero and does not wrap', a
     assert.equal(await director._transport.nextScene(), false);
   } finally { director._transport.close(); await director.destroy(); restore(); }
 });
+
+test('shot loading and playback ignore saved HUD themes without mutating the project', async () => {
+  const { director, styleManager, restore } = makeDirector();
+  try {
+    const scene = director._project.scenes[0];
+    scene.shots[0].visual.hud = { variant: 'tactical', visible: false };
+    scene.shots[1].visual.hud = { variant: 'minimal', visible: true };
+    const saved = JSON.stringify(scene);
+    await director.loadShot(scene.id, scene.shots[0].id, { flyDuration: 0 });
+    director._flyShotCamera = async () => {};
+    director._holdShot = async () => {};
+    const recording = [];
+    styleManager.setRecordingMode = (enabled, options) => recording.push({ enabled, options });
+    await director.startScene(scene.id, { single: true });
+    await director._viewSession.restoring;
+    assert.ok(styleManager.visualStates.length >= 3);
+    assert.ok(styleManager.visualStates.every(visual => !('hud' in visual)));
+    assert.equal(recording[0].options.preserveHud, true);
+    assert.equal(JSON.stringify(scene), saved);
+  } finally { await director.destroy(); restore(); }
+});
+
+test('end, seek, replay and next scene retain the original session until close', async () => {
+  const { director, dataManager, styleManager, viewer, restore } = makeDirector();
+  try {
+    director._flyShotCamera = async () => {};
+    director._holdShot = async () => {};
+    const second = structuredClone(director._project.scenes[0]);
+    second.id = 'scene-2';
+    second.shots.forEach(shot => { shot.id += '-next'; });
+    director._project.scenes.push(second);
+    styleManager.getVisualState = () => ({ style: 'nightvision', hud: { variant: 'minimal' } });
+    await dataManager.setEnabled('satellites', true);
+    await director._transport.open('scene-1');
+    await director._waitForRunIdle();
+    await settle();
+    assert.equal(director._transport.getState().visible, true);
+    assert.equal(dataManager.getAll().find(layer => layer.id === 'flights').enabled, true);
+    assert.equal(styleManager.visualStates.at(-1).style, 'retro');
+    assert.equal(await director._transport.seek(0.25, false), true);
+    assert.equal(styleManager.visualStates.some(visual => visual.style === 'nightvision'), false);
+    director._transport.resume();
+    await director._waitForRunIdle();
+    await settle();
+    assert.equal(await director._transport.nextScene(), true);
+    await director._waitForRunIdle();
+    await settle();
+    const flightsBeforeClose = viewer.flights.length;
+    await director._transport.close();
+    assert.equal(director._transport.getState().visible, false);
+    assert.equal(dataManager.getAll().find(layer => layer.id === 'flights').enabled, false);
+    assert.equal(dataManager.getAll().find(layer => layer.id === 'traffic').enabled, false);
+    assert.equal(dataManager.getAll().find(layer => layer.id === 'satellites').enabled, true);
+    assert.deepEqual(styleManager.visualStates.at(-1), { style: 'nightvision' });
+    assert.equal(viewer.flights.length, flightsBeforeClose, 'exit must not fly back');
+  } finally { await director.destroy(); restore(); }
+});
+
+test('closing during visual loading waits for cancelled work before restoring', async () => {
+  const { director, styleManager, dataManager, viewer, restore } = makeDirector();
+  let release;
+  try {
+    const apply = styleManager.applyVisualState;
+    let entered;
+    const loading = new Promise(resolve => { entered = resolve; });
+    const gate = new Promise(resolve => { release = resolve; });
+    let first = true;
+    styleManager.applyVisualState = async (...args) => {
+      if (first) { first = false; entered(); await gate; }
+      return apply(...args);
+    };
+    await director._transport.open('scene-1');
+    await loading;
+    const closing = director._transport.close();
+    await settle();
+    assert.equal(styleManager.visualStates.length, 0);
+    release();
+    await closing;
+    assert.equal(director._running, false);
+    assert.equal(viewer.flights.length, 0);
+    assert.equal(dataManager.committed.length, 0);
+    assert.deepEqual(styleManager.visualStates.at(-1), { style: 'normal' });
+  } finally { release?.(); await director.destroy(); restore(); }
+});
+
+test('immediate reopen waits for the previous restoration and captures a fresh baseline', async () => {
+  const { director, styleManager, dataManager, restore } = makeDirector();
+  let release;
+  try {
+    director._flyShotCamera = async () => {};
+    director._holdShot = async () => {};
+    await director._transport.open('scene-1');
+    await director._waitForRunIdle();
+    await settle();
+    const apply = styleManager.applyVisualState;
+    let entered;
+    const loading = new Promise(resolve => { entered = resolve; });
+    const gate = new Promise(resolve => { release = resolve; });
+    let first = true;
+    styleManager.applyVisualState = async (...args) => {
+      if (first) { first = false; entered(); await gate; }
+      return apply(...args);
+    };
+    const closing = director._transport.close();
+    await loading;
+    const opening = director._transport.open('scene-1');
+    await settle();
+    assert.equal(director._running, false);
+    release();
+    await closing;
+    assert.equal(await opening, true);
+    await director._waitForRunIdle();
+    await settle();
+    assert.equal(director._transport.getState().visible, true);
+    assert.equal(dataManager.getAll().find(layer => layer.id === 'flights').enabled, true);
+    await director.stopScene();
+    assert.equal(director._transport.getState().visible, false);
+    assert.equal(dataManager.getAll().find(layer => layer.id === 'flights').enabled, false);
+  } finally { release?.(); await director.destroy(); restore(); }
+});
+
+test('manual scene-layer OFF pauses the mobile player; closing then restores its baseline', async () => {
+  const { director, dataManager, viewer, restore } = makeDirector();
+  let flight;
+  viewer.camera.flyTo = options => { flight = options; };
+  viewer.camera.cancelFlight = () => flight?.cancel();
+  try {
+    director._project.scenes[0].releaseLayerIds = ['flights'];
+    await dataManager.setEnabled('traffic', true);
+    await director._transport.open('scene-1');
+    for (let n = 0; n < 50 && !flight; n++) await new Promise(setImmediate);
+    assert.ok(flight);
+    dataManager.visibilityListener({ type: 'visibility-requested', layerId: 'flights', enabled: false, origin: 'user' });
+    assert.equal(director._transport.getState().visible, true);
+    assert.equal(director._transport.getState().status, 'paused');
+    assert.equal(dataManager.getAll().find(layer => layer.id === 'flights').enabled, true, 'pause does not restore');
+    await director._transport.close();
+    assert.equal(dataManager.getAll().find(layer => layer.id === 'flights').enabled, false);
+    assert.equal(dataManager.getAll().find(layer => layer.id === 'traffic').enabled, true);
+  } finally { await director.destroy(); restore(); }
+});
+
+test('seeking out of a recording preview does not wait on its own restoration', async () => {
+  const { director, viewer, dataManager, restore } = makeDirector();
+  let flight;
+  viewer.camera.flyTo = options => { flight = options; };
+  viewer.camera.cancelFlight = () => flight?.cancel();
+  try {
+    const run = director.startScene('scene-1', { single: true });
+    for (let n = 0; n < 50 && !flight; n++) await new Promise(setImmediate);
+    assert.ok(flight);
+    assert.equal(await director.seekScene('scene-1', 0.25), true);
+    await run;
+    assert.equal(director._viewSession.restoring, null);
+    assert.equal(dataManager.getAll().find(layer => layer.id === 'flights').enabled, true);
+    await director.stopScene();
+    assert.equal(dataManager.getAll().find(layer => layer.id === 'flights').enabled, false);
+  } finally { await director.destroy(); restore(); }
+});

@@ -8,7 +8,7 @@ const OPTIONS = [
   ['share', 'Share this view'],
   ['location', 'My location'],
 ];
-const SOURCE_IDS = { north: 'north-up-view', tilt: 'tilt-map-view', globe: 'reset-globe-view', share: 'share-btn' };
+const SOURCE_IDS = { north: 'north-up-view', tilt: 'tilt-map-view', globe: 'reset-globe-view', share: 'share-btn', radio: 'radio-enable-btn' };
 const STORAGE_KEY = 'gev.mobile.map-buttons';
 const clamp = (value) => Math.max(0, Math.min(1, value));
 
@@ -41,6 +41,12 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     return node;
   };
   const image = (key, parent) => {
+    if (key === 'radio') {
+      const icon = make('span', 'mobile-map-icon mobile-map-radio-icon', parent);
+      icon.setAttribute('aria-hidden', 'true');
+      icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="1.5"/><path d="m12 10-4 11m4-11 4 11M9.5 17h5M6.3 3a7 7 0 0 0 0 10M17.7 3a7 7 0 0 1 0 10M9 5.5a3.5 3.5 0 0 0 0 5M15 5.5a3.5 3.5 0 0 1 0 5"/></svg>';
+      return icon;
+    }
     if (key === 'tilt' || key === 'more') {
       const icon = make('span', 'mobile-map-icon mobile-map-' + key + '-icon', parent);
       icon.setAttribute('aria-hidden', 'true');
@@ -89,6 +95,7 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
   const primaryRow = make('div', 'mobile-map-primary');
   const sources = Object.fromEntries(Object.entries(SOURCE_IDS).map(([key, id]) => [key, element(id)]));
   const slots = [];
+  const slotStates = new Map();
   const proxies = new Map();
   const navigate = () => {
     if (onMapInteraction?.() && !heldLayout)
@@ -115,6 +122,13 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     slots.push(node);
     return node;
   };
+  const radioSlot = slot('radio', primaryRow);
+  const radio = button('radio', 'Disable Radio', radioSlot, () => {
+    if (sources.radio?.getAttribute('aria-pressed') === 'true' && sources.radio.getAttribute('aria-disabled') !== 'true') run('radio');
+  });
+  radio.id = 'mobile-map-radio';
+  make('span', 'mobile-map-radio-indicator', radio).setAttribute('aria-hidden', 'true');
+  proxies.set('radio', [radio]);
   const north = button('north', 'Reset map to north up', slot('north', primaryRow), () => run('north'));
   north.classList.add('mobile-map-north');
   north.setAttribute('data-north-hidden', '');
@@ -255,11 +269,40 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     try { win.localStorage.setItem(STORAGE_KEY, JSON.stringify(pins)); } catch { /* Keep the session preference. */ }
     renderPins();
   }
+  function setSlotVisible(node, visible) {
+    const previous = slotStates.get(node);
+    if (previous?.visible === visible) return;
+    const content = node.firstElementChild;
+    const start = previous?.animation ? win.getComputedStyle(content) : null;
+    const from = start ? { opacity: start.opacity, transform: start.transform } : null;
+    previous?.animation?.cancel();
+    const state = { visible, animation: null };
+    slotStates.set(node, state);
+    node.inert = !visible;
+    if (!previous || !mobile || !content?.animate || win.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      node.hidden = !visible;
+      return;
+    }
+    node.hidden = false;
+    const hidden = { opacity: 0, transform: 'translateY(8px) scale(0.96)' };
+    const shown = { opacity: 1, transform: 'translateY(0) scale(1)' };
+    const durationValue = win.getComputedStyle(body).getPropertyValue('--mobile-map-control-animation-duration').trim() || '160ms';
+    const duration = parseFloat(durationValue) * (durationValue.endsWith('ms') ? 1 : 1000);
+    const animation = content.animate([from || (visible ? hidden : shown), visible ? shown : hidden], { duration, easing: 'ease', fill: 'both' });
+    state.animation = animation;
+    animation.finished.then(() => {
+      if (disposed || slotStates.get(node) !== state) return;
+      node.hidden = !visible;
+      animation.cancel();
+      state.animation = null;
+      renderPins();
+    }).catch(() => {});
+  }
   function renderPins() {
     let stackBase = null;
     for (const node of slots) {
       const key = node.dataset.control;
-      node.hidden = OPTIONS.some(([id]) => id === key) && !pins.includes(key);
+      setSlotVisible(node, key === 'radio' ? Boolean(radioPlaying()) : !OPTIONS.some(([id]) => id === key) || pins.includes(key));
       node.classList.remove('mobile-map-stack-base');
       if (node.parentElement === toolbar && !node.hidden) stackBase = node;
     }
@@ -284,14 +327,16 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
   }
 
   const title = element('title-bar');
+  const radioPlaying = () => sources.radio?.getAttribute('aria-pressed') === 'true' && title?.classList.contains('radio-broadcasting');
   const sheetNodes = ['left-panel-stack', 'right-context-rail', 'mobile-details', 'mobile-settings', 'command-dock'].map(element).filter(Boolean);
   const visual = (node, amount) => {
     const value = Math.round(amount * 1000) / 1000;
     const css = String(value);
     if (node.style.getPropertyValue('--map-control-visibility') !== css)
       node.style.setProperty('--map-control-visibility', css);
-    node.inert = value === 0;
-    node.setAttribute('aria-hidden', String(value === 0));
+    const hidden = value === 0 || slotStates.get(node)?.visible === false;
+    node.inert = hidden;
+    node.setAttribute('aria-hidden', String(hidden));
   };
   const northAngle = () => {
     const heading = parseFloat(sources.north?.style.getPropertyValue('--camera-heading')) || 0;
@@ -318,6 +363,7 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
     }
   };
   function draw() {
+    if (slotStates.get(radioSlot)?.visible !== Boolean(radioPlaying())) renderPins();
     const searchOpen = body.hasAttribute('data-mobile-search-open');
     search.setAttribute('aria-expanded', String(searchOpen));
     settings.setAttribute('aria-expanded', String(body.getAttribute('data-mobile-sheet') === 'more'));
@@ -326,6 +372,10 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
       const source = sources[key];
       for (const node of nodes) {
         node.disabled = key === 'location' ? locating : !source || source.disabled;
+        if (key === 'radio') {
+          node.disabled = !source || source.disabled || source.getAttribute('aria-disabled') === 'true';
+          node.setAttribute('aria-busy', String(node.disabled));
+        }
         if (key === 'location') node.setAttribute('aria-busy', String(locating));
         if (key === 'tilt') node.setAttribute('aria-pressed', source?.getAttribute('data-top-down') || 'false');
       }
@@ -415,8 +465,9 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
   observer.observe(documentRef.documentElement, { attributes: true, attributeFilter: ['data-tab-transition', 'data-scene-transition'] });
   const player = element('mobile-scene-player');
   if (player) observer.observe(player, { attributes: true, attributeFilter: ['class'] });
+  if (title) observer.observe(title, { attributes: true, attributeFilter: ['class'] });
   for (const node of [...sheetNodes, ...Object.values(sources)].filter(Boolean))
-    observer.observe(node, { attributes: true, attributeFilter: ['style', 'class', 'aria-pressed', 'data-top-down', 'disabled'] });
+    observer.observe(node, { attributes: true, attributeFilter: ['style', 'class', 'aria-pressed', 'aria-disabled', 'data-top-down', 'disabled'] });
   const resize = new win.ResizeObserver(wake);
   for (const node of [...sheetNodes, player, menu, header, toolbar, element('mobile-status-stack')].filter(Boolean)) resize.observe(node);
   listen(win, 'resize', wake);
@@ -454,6 +505,11 @@ export function initMobileMapControls({ documentRef, openSearch, openSettings, o
       mobile = value;
       if (value) wake();
       else {
+        for (const [node, state] of slotStates) {
+          state.animation?.cancel();
+          state.animation = null;
+          node.hidden = !state.visible;
+        }
         win.clearTimeout(northHideTimer);
         northHideTimer = null;
         heldLayout = null;

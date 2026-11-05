@@ -2913,5 +2913,22 @@
   "Mute microphone": "麦克风静音",
   "Cancel connection": "取消连接",
   "End conversation": "结束对话",
-  "Save map diagnostics": "保存地图诊断报告"
+  "Save map diagnostics": "保存地图诊断报告",
+  "Explore": "探索",
+  "Places": "地点",
+  "Search for a place, address or coordinates.": "搜索地点、地址或坐标。",
+  "Search on map": "在地图上搜索",
+  "Find a place or explore map data.": "查找地点或探索地图数据。",
+  "Current map view": "当前地图视图",
+  "Open context": "打开上下文",
+  "Quick locations": "快捷地点",
+  "Try a search": "试试搜索",
+  "Eiffel Tower": "埃菲尔铁塔",
+  "Search places or coordinates": "搜索地点或坐标",
+  "Searching…": "搜索中…",
+  "No ground in view": "视野内无地面",
+  "Active layers: {count}": "活动图层：{count}",
+  "World events": "世界事件",
+  "View all": "查看全部",
+  "Archive": "档案"
 }

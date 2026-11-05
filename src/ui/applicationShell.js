@@ -21,7 +21,7 @@ import { RadioControls } from './radio.js';
 import { LocalSdrControls } from './localSdrControls.js';
 import { LocationNavigation } from './locationNavigation.js';
 import { bindClearLayersControl } from './layers.js';
-import { bindCameraOrientationControls } from './cameraOrientationControls.js';
+import { bindCameraOrientationControls, pickViewTarget } from './cameraOrientationControls.js';
 import { createMapSourceControls } from './mapSource.js';
 import { STYLES } from './effects.js';
 import { isHudLayout } from '../hudLayouts.js';
@@ -107,6 +107,7 @@ export class StyleManager extends ShellFacade {
       localAdsbLayer,
     } = services;
     this.services = services;
+    this._weatherService = requestServices?.weather;
     this._lifetime = new UiLifetime();
     this._recording = new RecordingControls({
       syncShareState: () => this._syncShareState(),
@@ -895,6 +896,20 @@ export class StyleManager extends ShellFacade {
       onSheetsClosed: () => this._syncShareState(),
       onMapZoom: (direction) => this._cameraOrientationControls?.zoom(direction),
       onMapLocation: () => this._locateMobileMap(),
+      onExploreAction: (action) => this._openExploreAction(action),
+      onExploreLocation: (view) => this._flyToExploreView(view),
+      readExploreWeather: (view, options) => this._weatherService.getConditions(view.latitude, view.longitude, options),
+      readExploreView: () => {
+        const target = pickViewTarget(this.viewer);
+        const position = target ? Cesium.Cartographic.fromCartesian(target) : null;
+        return {
+          latitude: position ? Cesium.Math.toDegrees(position.latitude) : null,
+          longitude: position ? Cesium.Math.toDegrees(position.longitude) : null,
+          height: this.viewer.camera.positionCartographic.height,
+          heading: this.viewer.camera.heading,
+          activeLayers: this._dataManager?.getAll?.().filter((layer) => layer.enabled).length ?? 0,
+        };
+      },
       onLanguageSelect: (locale) => this._chooseLocale(locale),
       onCctvCoverageChange: (mode) => this._cctvControls?.setCoverageMode(mode),
       onCctvRetryFrame: () => this._cctvControls?.retryFrame(),
@@ -902,6 +917,50 @@ export class StyleManager extends ShellFacade {
         void this._onMobileTabOpened(sheet);
       },
     });
+  }
+
+  _flyToExploreView(view) {
+    if (this._disposed || ![view?.latitude, view?.longitude].every(Number.isFinite)) return false;
+    return this.runImmediateNavigation('location', () => this.viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(view.longitude, view.latitude, Math.max(500, view.height || 1500)),
+      orientation: { heading: view.heading || 0, pitch: -Math.PI / 2, roll: 0 },
+      duration: 1.2,
+    }));
+  }
+
+  /** Enable Explore data through its existing owner without flying or autoplaying. */
+  async _openExploreAction(action) {
+    if (this._disposed || !['contacts', 'cameras', 'radio'].includes(action)) return false;
+    const generation = this._exploreActionGeneration = (this._exploreActionGeneration || 0) + 1;
+    const message = action === 'contacts'
+      ? t('Contacts could not complete the requested transition; try again')
+      : action === 'cameras' ? t('CCTV layer unavailable')
+        : t('Radio could not {action} cleanly', { action: t('start') });
+    return this._runUserFacingContextAction(async (notificationToken) => {
+      if (action === 'contacts') {
+        const result = await this.setContextMode('contacts', {
+          notificationToken, isCurrent: () => !this._disposed && generation === this._exploreActionGeneration,
+        });
+        return Boolean(result?.ok || result?.cancelled);
+      }
+      const layerId = action === 'cameras' ? 'cctv' : 'radio';
+      if (!this._dataManager?.layers?.has(layerId)) return false;
+      const enabled = await this._dataManager.setEnabled(layerId, true, { origin: 'user', notificationToken });
+      if (enabled === false) return false;
+      const sheet = action === 'cameras' ? 'cameras' : 'context';
+      if (this._disposed || generation !== this._exploreActionGeneration || this._mobileShell?.getSheet() !== sheet || !this._dataManager.isEnabled(layerId)) return true;
+      if (action === 'cameras') {
+        this.services.cctvLayer.focusNearest({ focus: false });
+      } else {
+        const radio = this.services.radioLayer;
+        if (!['playing', 'loading', 'buffering'].includes(radio.getUIState()?.audioState)) {
+          radio.selectRequestedStation({}, { autoplay: false, origin: 'user' });
+        }
+        this.setPanelCollapsed('radio-panel', false, { explicit: true });
+        await this._radioControls?._revealRadioPanelInsideContext();
+      }
+      return true;
+    }, message);
   }
 
   /** Resolve device location without allowing a late result to steal the camera. */

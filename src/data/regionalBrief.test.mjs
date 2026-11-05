@@ -61,3 +61,13 @@ test('regional distance handles nearby movement and missing positions', () => {
   assert.ok(distance > 11000 && distance < 11200);
   assert.equal(regionalDistanceM(null, null), Infinity);
 });
+
+test('hourly weather forecast keeps UTC, missing values and a bounded 24-hour series', () => {
+  const weather = normalizeRegionalWeather({ current: { temperature_2m: 2 }, hourly: {
+    time: ['2026-11-05T00:00', 'invalid', '2026-11-05T02:00+02:00', ...Array(30).fill('2026-11-05T03:00')],
+    temperature_2m: [0, 99, null], precipitation: [0, 99, null], wind_speed_10m: [0, 99, false],
+  } });
+  assert.equal(weather.forecast.length, 23);
+  assert.deepEqual(weather.forecast[0], { time: '2026-11-05T00:00:00.000Z', temperatureC: 0, precipitationMm: 0, windKph: 0 });
+  assert.deepEqual(weather.forecast[1], { time: '2026-11-05T00:00:00.000Z', temperatureC: null, precipitationMm: null, windKph: null });
+});

@@ -83,8 +83,9 @@ export function createSceneTransport(director) {
       if (disposed || !scene?.shots.length) return false;
       const current = ++generation;
       resumeRequested = true;
-      director.stopScene();
+      director.stopScene(undefined, { restore: false });
       await director._waitForRunIdle();
+      if (director._viewSession.restoring) await director._viewSession.restoring;
       if (disposed || current !== generation) return false;
       const shots = scene.shots.map((shot) => ({
         id: shot.id, title: displayShotTitle(shot.title, shot, scene),
@@ -113,11 +114,11 @@ export function createSceneTransport(director) {
       const shot = state.shots[state.index + direction];
       if (shot) return seek(shot.start, state.status === 'playing');
     },
-    close() {
+    close(reason) {
       resumeRequested = false;
       generation++;
       publish({ visible: false, status: 'idle' });
-      director.stopScene();
+      return director.stopScene(reason);
     },
     destroy() {
       disposed = true;

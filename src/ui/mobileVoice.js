@@ -7,6 +7,7 @@ export function initMobileVoice({ documentRef, trigger, onReveal, readCommands }
   const body = documentRef.body;
   const commands = readCommands || (() => win.__gevVoiceCommands);
   const sheetOpen = () => !!body.getAttribute('data-mobile-sheet') ||
+    body.hasAttribute('data-mobile-search-open') ||
     documentRef.documentElement?.getAttribute('data-tab-transition') != null;
   const make = (tag, className, parent) => {
     const node = documentRef.createElement(tag);
@@ -44,6 +45,7 @@ export function initMobileVoice({ documentRef, trigger, onReveal, readCommands }
     return node;
   };
   const retry = button('retry', '<path d="M20 11a8 8 0 1 0-2 6M20 4v7h-7"/>');
+  const retryLabel = make('span', 'mobile-voice-action-label', retry);
   const slot = make('div', 'mobile-voice-content', panel);
   const end = make('button', 'mobile-sheet-control mobile-sheet-close', heading);
   end.type = 'button';
@@ -150,6 +152,7 @@ export function initMobileVoice({ documentRef, trigger, onReveal, readCommands }
     text(label, t(labels[shownState]));
     end.hidden = !active && !failed;
     retry.hidden = !failed;
+    text(retryLabel, t('Retry'));
     name(end, connecting ? 'Cancel connection' : failed ? 'Close' : 'End conversation');
     const detail = owner?.voicePanel;
     const presentation = detail?.snapshot();

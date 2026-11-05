@@ -11,6 +11,7 @@ const CATEGORIES = [
   ['language', 'Language', 'language'],
 ];
 const ICONS = {
+  terminal: '<path d="M6 4h12l2 2v12l-2 2H6l-2-2V6Z"/><path d="m8 8 3 3-3 3m5 1h3"/>',
   palette: '<path d="M4 7h16M4 17h16M8 4v6m8 4v6"/>',
   public: '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>',
   graphic_eq: '<path d="M4 9v6m4-10v14m4-17v20m4-17v14m4-10v6"/>',
@@ -155,7 +156,7 @@ export function initMobileSettings({ documentRef, onClose, onCollapse, onLanguag
     if (!next) {
       for (const [key, label, icon] of CATEGORIES)
         row(label, icon, () => show(key), key === 'language' ? LOCALE_NAMES[getLocale()] : '');
-      if (win.__gevMapDiagnostics) row('Save map diagnostics', 'public', () => win.__gevMapDiagnostics.download());
+      if (win.__gevMapDiagnostics) row('Save map diagnostics', 'terminal', () => win.__gevMapDiagnostics.download(), 'DEV').classList.add('mobile-settings-row-dev');
     } else if (next === 'appearance') {
       borrow(byId('style-buttons'));
       group('hud-toggle');

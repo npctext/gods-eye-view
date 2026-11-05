@@ -133,6 +133,16 @@ export function normalizeRegionalWeather(payload) {
     windDirectionDeg: numberOrNull(current.wind_direction_10m),
     visibilityM: numberOrNull(current.visibility),
     weatherCode: numberOrNull(current.weather_code),
+    ...(Array.isArray(payload?.hourly?.time) ? { forecast: payload.hourly.time.slice(0, 24).flatMap((time, index) => {
+      const stamp = typeof time === 'string' && !/(?:[zZ]|[+-]\d\d:?\d\d)$/.test(time) ? time + 'Z' : time;
+      if (!Number.isFinite(Date.parse(stamp))) return [];
+      return [{
+        time: new Date(stamp).toISOString(),
+        temperatureC: numberOrNull(payload.hourly.temperature_2m?.[index]),
+        precipitationMm: numberOrNull(payload.hourly.precipitation?.[index]),
+        windKph: numberOrNull(payload.hourly.wind_speed_10m?.[index]),
+      }];
+    }) } : {}),
   };
 }
 

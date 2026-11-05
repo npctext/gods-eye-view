@@ -48,6 +48,7 @@ function element(tag, document) {
     setAttribute: (key, value) => attributes.set(key, String(value)),
     getAttribute: (key) => attributes.get(key) ?? null,
     hasAttribute: (key) => attributes.has(key),
+    toggleAttribute: (key, force) => force ? attributes.set(key, '') : attributes.delete(key),
     removeAttribute: (key) => attributes.delete(key),
     append(...children) {
       for (const child of children) {
@@ -102,6 +103,11 @@ function element(tag, document) {
       }
       return null;
     },
+    querySelector(selector) {
+      if (selector === '.mobile-sheet-title') return node.children.find(child => child.className === 'mobile-sheet-title') || null;
+      if (selector === '[data-explore-action="weather"]') return node.children.find(child => child.dataset.exploreAction === 'weather') || null;
+      return node.querySelectorAll(selector)[0] || null;
+    },
     querySelectorAll(selector) {
       const found = [];
       const matches = (child) =>
@@ -130,6 +136,7 @@ function element(tag, document) {
       document.activeElement = node;
       node.dispatchEvent(new Event('focus'));
     },
+    click() { node.dispatchEvent(new Event('click')); },
     blur() {
       if (document.activeElement === node)
         document.activeElement = document.body;
@@ -150,6 +157,9 @@ function fixture({
   mobile = true,
   expanded = [],
   onTabOpened = () => {},
+  onExploreAction,
+  onExploreLocation,
+  readExploreView,
 } = {}) {
   const document = new EventTarget();
   document.ids = new Map();
@@ -191,8 +201,20 @@ function fixture({
       pois.id = 'poi-row';
       const divider = element('div', document);
       divider.id = 'location-bar-divider';
-      popover.append(pois, divider, search);
+      const cities = element('div', document);
+      cities.id = 'location-pills';
+      popover.append(pois, divider, cities, search);
       panel.append(popover);
+    }
+    if (id === 'scene-panel') {
+      const select = element('select', document);
+      select.id = 'scene-select';
+      select.options = [
+        { value: 'bhote-koshi-nepal-scene', textContent: 'Nepal Flood Incident' },
+        { value: 'flights-radar', textContent: 'Global Flights Radar' },
+        { value: 'orbital-watch', textContent: 'Orbital Watch' },
+      ];
+      panel.append(select);
     }
     if (id === 'data-panel') {
       const handle = element('button', document);
@@ -248,6 +270,9 @@ function fixture({
   const shell = initMobileShell({
     documentRef: document,
     onTabOpened,
+    onExploreAction,
+    onExploreLocation,
+    readExploreView,
     matchMedia: (query) => query === '(prefers-reduced-motion: reduce)' ? { matches: false } : media,
     MutationObserverImpl: FakeMutationObserver,
     ResizeObserverImpl: null,
@@ -645,6 +670,10 @@ test('city selection closes search and reuses the existing POI buttons in detail
   search.focus();
   shell.showDestination('Paris');
   assert.equal(search.value, 'Paris');
+  assert.equal(document.body.hasAttribute('data-mobile-details'), true);
+  assert.equal(document.getElementById('mobile-details-title').textContent, 'Paris');
+  assert.equal(document.getElementById('mobile-details').hasAttribute('data-location-only'), true);
+  assert.equal(document.getElementById('mobile-details-content').contains(pois), false, 'search must not reuse the previous city POIs');
   assert.equal(document.body.getAttribute('data-mobile-search-open'), null);
   resize(false);
   assert.equal(document.getElementById('location-bar-popover').contains(pois), true);
@@ -1343,4 +1372,232 @@ test('a slow downward pull is claimed before Android native scroll takes ownersh
   await new Promise((resolve) => setTimeout(resolve, 300));
   assert.equal(shell.getSheet(), null);
   shell.destroy();
+});
+
+
+test('Explore opens without focusing the input and keeps native city controls across desktop resize', () => {
+  const { document, resize, search, shell } = fixture();
+  const cities = document.getElementById('location-pills');
+  const searchBar = document.getElementById('mobile-search-bar');
+  assert.equal(cities.parentElement.className, 'mobile-explore-cities');
+  shell.openSearch();
+  assert.equal(document.activeElement, searchBar, 'opening Explore must not invoke the phone keyboard');
+  assert.equal(searchBar.inert, false);
+  assert.equal(document.getElementById('mobile-tab-bar').inert, true);
+  search.focus();
+  assert.equal(document.activeElement, search, 'tapping the field still focuses it');
+  resize(false);
+  assert.equal(cities.parentElement.id, 'location-bar-popover');
+  assert.equal(search.getAttribute('placeholder'), null);
+  assert.equal(searchBar.inert, true);
+  assert.equal(document.getElementById('mobile-tab-bar').inert, false);
+  resize(true);
+  assert.equal(cities.parentElement.className, 'mobile-explore-cities');
+  shell.destroy();
+  assert.equal(cities.parentElement.id, 'location-bar-popover');
+});
+
+test('Explore previews open the selected story through the scene panel and keep deleted stories hidden', () => {
+  const opened = [];
+  const stories = [];
+  const { document, shell, tab } = fixture({ onTabOpened: sheet => opened.push(sheet) });
+  document.getElementById('scene-panel').addEventListener('mobile-scene-open', event => stories.push(event.detail.sceneId));
+  const searchBar = document.getElementById('mobile-search-bar');
+  const cards = searchBar.querySelectorAll('button').filter(button => button.dataset.exploreScene);
+  shell.openSearch();
+  assert.equal(cards.filter(card => !card.hidden).length, 3);
+  assert.equal(cards.find(card => card.dataset.exploreScene === 'city-overload').hidden, true);
+  for (const sceneId of ['bhote-koshi-nepal-scene', 'flights-radar', 'orbital-watch']) {
+    shell.openSearch();
+    cards.find(card => card.dataset.exploreScene === sceneId).click();
+    assert.equal(shell.getSheet(), 'scenes');
+    assert.equal(document.body.hasAttribute('data-mobile-search-open'), false);
+    assert.equal(stories.at(-1), sceneId);
+    assert.equal(opened.at(-1), 'scenes');
+    shell.setSheet(null);
+    assert.equal(document.activeElement, tab('scenes'));
+  }
+  document.getElementById('scene-select').options = [];
+  shell.openSearch();
+  assert.ok(cards.every(card => card.hidden));
+  shell.destroy();
+});
+
+test('clearing a typed query returns to Explore without replacing the native search input', () => {
+  const { document, shell, search } = fixture();
+  shell.openSearch();
+  const content = document.getElementById('mobile-search-bar').children.find(node => node.className === 'mobile-explore-content');
+  const query = content.children[0];
+  const browse = content.children[1];
+  assert.equal(query.hidden, true);
+  search.value = '40.7128, -74.0060';
+  search.dispatchEvent(new Event('input'));
+  assert.equal(browse.hidden, true);
+  assert.equal(query.hidden, false);
+  document.getElementById('mobile-search-clear').click();
+  assert.equal(search.value, '');
+  assert.equal(browse.hidden, false);
+  assert.equal(query.hidden, true);
+  assert.equal(document.activeElement, search);
+  shell.destroy();
+});
+
+test('Explore quick actions close search and explicitly open data without tab side effects', () => {
+  const actions = [];
+  const opened = [];
+  const { document, shell, search, tab, press } = fixture({ readExploreView: () => ({ latitude: 40, longitude: -74 }), onExploreAction: action => actions.push(action), onTabOpened: sheet => opened.push(sheet) });
+  const buttons = document.getElementById('mobile-search-bar').querySelectorAll('button').filter(button => button.dataset.exploreAction);
+  assert.deepEqual(buttons.map(button => button.dataset.exploreAction), ['contacts', 'cameras', 'weather', 'radio']);
+  for (const button of buttons) {
+    const action = button.dataset.exploreAction;
+    const expectedSheet = action === 'cameras' ? 'cameras' : 'context';
+    shell.openSearch();
+    button.click();
+    assert.equal(shell.getSheet(), expectedSheet);
+    assert.equal(document.body.hasAttribute('data-mobile-search-open'), false);
+    if (action !== 'weather') assert.equal(actions.at(-1), action);
+    if (action === 'weather') {
+      assert.equal(tab('context').getAttribute('aria-expanded'), 'false');
+      assert.equal(document.body.hasAttribute('data-mobile-context-weather'), true);
+      press('context');
+      assert.equal(opened.pop(), 'context');
+      assert.equal(document.body.hasAttribute('data-mobile-context-weather'), false);
+      assert.equal(tab('context').getAttribute('aria-expanded'), 'true');
+    }
+    assert.equal(document.getElementById('location-search'), search);
+    shell.setSheet(null);
+    assert.equal(document.activeElement, tab(expectedSheet));
+  }
+  assert.deepEqual(opened, [], 'Radio must not implicitly enter Contacts for a tracked aircraft');
+  shell.destroy();
+});
+
+function exploreActionHost() {
+  const calls = [];
+  const enabled = new Set();
+  const host = {
+    sheet: 'context',
+    _mobileShell: { getSheet: () => host.sheet },
+    _dataManager: {
+      layers: new Map([['cctv', {}], ['radio', {}]]),
+      isEnabled: id => enabled.has(id),
+      setEnabled: async (id, value) => { calls.push(['enable', id, value]); enabled.add(id); return true; },
+    },
+    services: {
+      cctvLayer: { focusNearest: options => calls.push(['camera', options]) },
+      radioLayer: { getUIState: () => ({ audioState: 'idle' }), selectRequestedStation: (criteria, options) => calls.push(['radio', options]) },
+    },
+    setContextMode: async (mode, options) => { calls.push(['context', mode, options.notificationToken]); return { ok: true }; },
+    setPanelCollapsed: (...args) => calls.push(['panel', ...args]),
+    _radioControls: { _revealRadioPanelInsideContext: async () => calls.push(['reveal']) },
+    _runUserFacingContextAction: async operation => operation('notification'),
+  };
+  return { host, calls };
+}
+
+test('Explore enables Contacts and cameras idempotently without flying', async () => {
+  const { host, calls } = exploreActionHost();
+  await StyleManager.prototype._openExploreAction.call(host, 'contacts');
+  assert.deepEqual(calls, [['context', 'contacts', 'notification']]);
+  calls.length = 0;
+  host.sheet = 'cameras';
+  await StyleManager.prototype._openExploreAction.call(host, 'cameras');
+  await StyleManager.prototype._openExploreAction.call(host, 'cameras');
+  assert.deepEqual(calls, [['enable', 'cctv', true], ['camera', { focus: false }], ['enable', 'cctv', true], ['camera', { focus: false }]]);
+});
+
+test('Explore Radio selects nearby silently and preserves an existing broadcast', async () => {
+  const { host, calls } = exploreActionHost();
+  await StyleManager.prototype._openExploreAction.call(host, 'radio');
+  assert.deepEqual(calls, [['enable', 'radio', true], ['radio', { autoplay: false, origin: 'user' }], ['panel', 'radio-panel', false, { explicit: true }], ['reveal']]);
+  for (const audioState of ['playing', 'loading', 'buffering']) {
+    calls.length = 0;
+    host.services.radioLayer.getUIState = () => ({ audioState });
+    await StyleManager.prototype._openExploreAction.call(host, 'radio');
+    assert.equal(calls.some(call => call[0] === 'radio'), false);
+    assert.equal(calls.some(call => call[0] === 'reveal'), true);
+  }
+});
+
+test('Explore ignores late data presentation after another action or a closed sheet', async () => {
+  const { host, calls } = exploreActionHost();
+  let finish;
+  host._dataManager.setEnabled = () => new Promise(resolve => { finish = resolve; });
+  host._dataManager.isEnabled = () => true;
+  const first = StyleManager.prototype._openExploreAction.call(host, 'radio');
+  await StyleManager.prototype._openExploreAction.call(host, 'contacts');
+  finish(true);
+  await first;
+  assert.deepEqual(calls.map(call => call[0]), ['context']);
+  calls.length = 0;
+  const second = StyleManager.prototype._openExploreAction.call(host, 'radio');
+  host.sheet = null;
+  finish(true);
+  await second;
+  assert.deepEqual(calls, []);
+});
+
+test('Explore propagates failed enablement without selecting or presenting results', async () => {
+  const { host, calls } = exploreActionHost();
+  host._dataManager.setEnabled = async () => false;
+  assert.equal(await StyleManager.prototype._openExploreAction.call(host, 'radio'), false);
+  host.setContextMode = async () => ({ ok: false });
+  assert.equal(await StyleManager.prototype._openExploreAction.call(host, 'contacts'), false);
+  assert.deepEqual(calls, []);
+});
+
+test('Layers navigation count follows the active filter, hides at zero and updates while closed', () => {
+  const { document, mutateLayers, tab, shell } = fixture();
+  const count = document.getElementById('mobile-layers-nav-count');
+  assert.equal(count.hidden, true);
+  const list = document.getElementById('data-toggles');
+  const toggle = element('button', document);
+  toggle.classList.add('data-toggle-btn', 'active');
+  list.append(toggle);
+  mutateLayers();
+  assert.equal(count.hidden, false);
+  assert.equal(count.textContent, '1');
+  assert.match(tab('layers').getAttribute('aria-label'), /1/);
+  assert.equal(shell.getSheet(), null);
+  toggle.classList.remove('active');
+  mutateLayers();
+  assert.equal(count.hidden, true);
+  assert.equal(count.textContent, '0');
+  shell.destroy();
+});
+
+test('Context sheet close control restores the borrowed desktop state', () => {
+  const { document, press, shell, collapsed } = fixture();
+  press('context');
+  assert.equal(collapsed('global-context-panel'), false);
+  document.getElementById('mobile-context-close').click();
+  assert.equal(shell.getSheet(), null);
+  assert.equal(collapsed('global-context-panel'), true);
+  shell.destroy();
+  assert.equal(document.getElementById('mobile-context-header'), null);
+});
+
+test('Current map view navigates to the displayed snapshot and closes Explore without entering Context', () => {
+  const calls = [];
+  const view = { latitude: 53.9, longitude: 27.5, height: 1800, heading: 0.5 };
+  const { document, shell } = fixture({ readExploreView: () => view, onExploreLocation: point => calls.push(point) });
+  shell.openSearch();
+  const card = document.getElementById('mobile-search-bar').querySelectorAll('button').find(node => node.className === 'mobile-explore-area');
+  view.latitude = 20;
+  card.click();
+  assert.equal(calls[0].latitude, 53.9);
+  assert.equal(calls[0].height, 1800);
+  assert.equal(shell.getSheet(), null);
+  assert.equal(document.body.hasAttribute('data-mobile-search-open'), false);
+  shell.destroy();
+});
+
+test('Current map view claims navigation before flying and rejects missing ground', () => {
+  const calls = [];
+  const host = { viewer: { camera: { flyTo: options => calls.push(options) } }, runImmediateNavigation: (kind, move) => { calls.push(kind); return move(); } };
+  assert.equal(StyleManager.prototype._flyToExploreView.call(host, { latitude: null, longitude: 10 }), false);
+  assert.equal(calls.length, 0);
+  StyleManager.prototype._flyToExploreView.call(host, { latitude: 53.9, longitude: 27.5, height: 1800, heading: 0.5 });
+  assert.equal(calls[0], 'location');
+  assert.deepEqual(calls[1].orientation, { heading: 0.5, pitch: -Math.PI / 2, roll: 0 });
 });

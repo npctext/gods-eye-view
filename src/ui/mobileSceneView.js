@@ -2,6 +2,15 @@ import { t } from '../i18n/index.js';
 import { createSceneTapFeedback } from './mobileSceneFeedback.js';
 import { getSceneCategory } from './sceneCategories.js';
 
+const SCENE_ICONS = new Map([
+  ['bhote-koshi-nepal-scene', 'waves'],
+  ['flights-radar', 'flight'],
+  ['orbital-watch', 'satellite'],
+  ['thermal-threats', 'thermal'],
+  ['city-overload', 'city'],
+  ['omniscience-pullback', 'overview'],
+]);
+
 export function mountMobileSceneView(controls) {
   const panel = controls.elements.panel;
   const inner = panel?.querySelector?.('.scene-panel-inner');
@@ -139,7 +148,13 @@ export function mountMobileSceneView(controls) {
       importIcon.src = '/icons/mobile-tactical-icons/import.svg';
       importIcon.alt = '';
       importButton.append(importIcon, text('span', t('Import')));
-      actions.append(importButton, button(`＋ ${t('New')}`, () => controls.createScene(), 'mobile-scene-new'));
+      const newButton = button('', () => controls.createScene(), 'mobile-scene-new');
+      const newIcon = document.createElement('span');
+      newIcon.className = 'mobile-scene-new-icon';
+      newIcon.setAttribute('aria-hidden', 'true');
+      newIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M12 4v16M4 12h16"/></svg>';
+      newButton.append(newIcon, text('span', t('New')));
+      actions.append(importButton, newButton);
       content.append(actions);
       const list = document.createElement('div');
       list.className = 'mobile-scene-list';
@@ -158,7 +173,8 @@ export function mountMobileSceneView(controls) {
         const symbol = document.createElement('span');
         symbol.className = 'mobile-scene-card-symbol';
         const icon = document.createElement('img');
-        icon.src = active ? '/scene-waves-active.svg' : '/scene-waves.svg';
+        const sceneIcon = SCENE_ICONS.get(item.id) || 'generic';
+        icon.src = `/scene-${sceneIcon}${active ? '-active' : ''}.svg`;
         icon.alt = '';
         symbol.append(icon);
         const details = document.createElement('span');
@@ -351,11 +367,21 @@ export function mountMobileSceneView(controls) {
     scrollPositions.clear();
     render();
   };
+  const openScene = (event) => {
+    const sceneId = event.detail?.sceneId;
+    if (!controls.read().scenes.some((scene) => scene.id === sceneId)) return;
+    tappedShot = null;
+    tappedSceneId = sceneId;
+    controls.run('selectScene', sceneId);
+    show('detail', sceneId);
+  };
+  panel.addEventListener('mobile-scene-open', openScene);
   panel.addEventListener('mobile-scenes-closed', resetSelection);
   render();
   return { render, updatePlayback, destroy: () => {
     destroyed = true;
     tapFeedback.destroy();
+    panel.removeEventListener('mobile-scene-open', openScene);
     panel.removeEventListener('mobile-scenes-closed', resetSelection);
     transition?.skipTransition();
     document.documentElement.removeAttribute('data-scene-transition');

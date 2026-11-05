@@ -9,6 +9,8 @@ async function fetchRegionalWeather(point) {
     longitude: point.longitude.toFixed(5),
     current:
       'temperature_2m,apparent_temperature,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,visibility',
+    hourly: 'temperature_2m,precipitation,wind_speed_10m',
+    forecast_hours: '24',
     timezone: 'UTC',
   });
   try {

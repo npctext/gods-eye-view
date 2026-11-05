@@ -2,7 +2,7 @@ import { msg, t } from '../i18n/index.js';
 import { disposeSplitFlap } from '../splitFlap.js';
 
 // Borrow the existing controls so the layer controllers keep owning their state.
-export function initMobileCameras({ documentRef, onClose, onCollapse, onCoverageChange, onRetryFrame, onConfigureKey }) {
+export function initMobileCameras({ documentRef, onClose, onCollapse, onExpand, onCoverageChange, onRetryFrame, onConfigureKey }) {
   const win = documentRef.defaultView;
   const byId = (id) => documentRef.getElementById(id);
   const root = byId('right-context-rail');
@@ -25,11 +25,12 @@ export function initMobileCameras({ documentRef, onClose, onCollapse, onCoverage
   chrome.id = 'mobile-cameras-chrome';
   root.prepend(chrome);
   const header = make('header', 'mobile-cameras-header', chrome);
-  const collapse = button('mobile-cameras-collapse', header);
+  const headerRow = make('div', 'mobile-details-header mobile-sheet-header', header);
+  const collapse = button('mobile-cameras-collapse', headerRow);
   collapse.setAttribute('aria-label', t('Collapse cameras'));
   make('span', 'mobile-details-handle', collapse).setAttribute('aria-hidden', 'true');
   make('span', 'mobile-sheet-title', collapse, msg('CAMERAS'));
-  const close = button('mobile-sheet-control mobile-sheet-close', header);
+  const close = button('mobile-sheet-control mobile-sheet-close', headerRow);
   close.setAttribute('aria-label', t('Close'));
   make('span', 'mobile-sheet-close-icon', close).setAttribute('aria-hidden', 'true');
   const tabs = make('div', 'mobile-camera-segments mobile-cameras-tabs', chrome);
@@ -272,6 +273,7 @@ export function initMobileCameras({ documentRef, onClose, onCollapse, onCoverage
     closing = null;
     drag = null;
     root.classList.remove('mobile-cameras-dragging');
+    root.style.removeProperty('height');
     root.style.removeProperty('transform');
   };
   const dismiss = () => {
@@ -295,7 +297,7 @@ export function initMobileCameras({ documentRef, onClose, onCollapse, onCoverage
   collapse.addEventListener('pointerdown', (event) => {
     if (event.button !== 0 || closing !== null) return;
     suppressClick = false;
-    drag = { id: event.pointerId, y: event.clientY, distance: 0 };
+    drag = { id: event.pointerId, y: event.clientY, distance: 0, height: root.getBoundingClientRect().height, expanded: documentRef.body.hasAttribute('data-mobile-rail-expanded') };
     collapse.setPointerCapture(event.pointerId);
   });
   collapse.addEventListener('pointermove', (event) => {
@@ -304,13 +306,21 @@ export function initMobileCameras({ documentRef, onClose, onCollapse, onCoverage
     if (Math.abs(drag.distance) < 6) return;
     suppressClick = true;
     root.classList.add('mobile-cameras-dragging');
-    root.style.transform = `translateY(${Math.max(0, drag.distance)}px)`;
+    if (drag.distance < 0 || drag.expanded) {
+      const maximum = parseFloat(win.getComputedStyle(root).maxHeight);
+      root.style.height = `${Math.min(maximum, Math.max(win.innerHeight * 0.45, drag.height - drag.distance))}px`;
+    } else root.style.transform = `translateY(${Math.max(0, drag.distance)}px)`;
   });
   const release = (event) => {
     if (!drag || drag.id !== event.pointerId) return;
     const distance = drag.distance;
+    const wasExpanded = drag.expanded;
     resetClosing();
-    if (event.type === 'pointerup' && distance > 64) dismiss();
+    if (event.type === 'pointerup') {
+      if (distance < -48) onExpand?.(true);
+      else if (wasExpanded && distance > 48) onExpand?.(false);
+      else if (distance > 64) dismiss();
+    }
     win.setTimeout(() => { suppressClick = false; }, 0);
   };
   collapse.addEventListener('pointerup', release);

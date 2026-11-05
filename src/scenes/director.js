@@ -20,6 +20,7 @@ import { SceneControls } from '../ui/scenes.js';
 import { buildPlaybackQueue, playSceneQueue } from '../director/playback.js';
 import { createScenePlaybackAdapter } from './playbackAdapter.js';
 import { createSceneTransport } from './transport.js';
+import { createSceneViewSession } from './viewSession.js';
 import * as Cesium from 'cesium';
 import {
   SCENE_APPEND_RECIPES,
@@ -213,6 +214,7 @@ export class SceneDirector {
         }
       }
     }
+    this._viewSession = createSceneViewSession(this);
     this._transport = createSceneTransport(this);
     this._initUI();
     this._visibilityUnsubscribe =
@@ -224,7 +226,8 @@ export class SceneDirector {
           return;
         const scene = this._getSelectedScene();
         if (!scene?.releaseLayerIds?.includes(change.layerId)) return;
-        this.stopScene(msg('Scene layer turned off'));
+        if (this._transport?.getState().visible) this._transport.pause();
+        else this.stopScene(msg('Scene layer turned off'));
       });
   }
 
@@ -250,6 +253,7 @@ export class SceneDirector {
     this._interactions?.destroy();
     this._dataPacks?.destroy();
     this._controls?.destroy();
+    this._viewSession?.destroy();
     this._transport?.destroy();
     this._state.destroy();
     this._destroyPromise = Promise.resolve().then(async () => {
@@ -1127,6 +1131,11 @@ export class SceneDirector {
       playMedia = false,
     } = {},
   ) {
+    if (this._viewSession.restoring) {
+      const generation = this._sceneSeekGeneration;
+      await this._viewSession.restoring;
+      if (this._destroyed || generation !== this._sceneSeekGeneration) return;
+    }
     if (this._running) return { started: false, reason: 'already-running' };
     const { scene, shot } = this._getShot(sceneId, shotId);
     if (!scene || !shot) return { started: false, reason: 'shot-not-found' };
@@ -1308,11 +1317,14 @@ export class SceneDirector {
 
   /** Keep installed append-pack shots on any surface declared by their source recipe. */
   _visualStateForShot(shot) {
-    return visualStateForShot(
+    const visual = visualStateForShot(
       shot,
       this._scenePacks,
       this._isMapStackAvailable,
     );
+    if (!visual?.hud) return visual;
+    const { hud, ...mapVisual } = visual;
+    return mapVisual;
   }
 
   /** Keep a shot on its final camera pose until its authored layer reveal finishes. */
@@ -1592,7 +1604,7 @@ export class SceneDirector {
   /** Seek the complete authored scene state to an exact clock position. */
   seekScene(sceneId, progress) {
     if (this._destroyed) return Promise.resolve(false);
-    this.stopScene(msg('Seeking scene clock'));
+    this.stopScene(msg('Seeking scene clock'), { restore: false });
     const generation = ++this._sceneSeekGeneration;
     return this._trackWork(this._seekScene(sceneId, progress, generation));
   }
@@ -1603,6 +1615,7 @@ export class SceneDirector {
     if (this._running) {
       await this._waitForRunIdle();
     }
+    if (this._viewSession.restoring) await this._viewSession.restoring;
     if (this._destroyed || generation !== this._sceneSeekGeneration)
       return false;
     const seekState = this._sceneSeekState(scene, progress);
@@ -1782,6 +1795,11 @@ export class SceneDirector {
     sceneId,
     { single = false, afterShotId = null, preview = true, fromProgress = null } = {},
   ) {
+    if (this._viewSession.restoring) {
+      const generation = this._sceneSeekGeneration;
+      await this._viewSession.restoring;
+      if (this._destroyed || generation !== this._sceneSeekGeneration) return { started: false, reason: 'cancelled' };
+    }
     if (this._running) return { started: false, reason: 'already-running' };
 
     const startSceneId =
@@ -1813,6 +1831,8 @@ export class SceneDirector {
     if (!this._claimCameraOwnership()) {
       return { started: false, reason: 'camera-unavailable' };
     }
+
+    this._viewSession.begin();
 
     // A run supersedes any LOAD still suspended on its own awaits, so that
     // load cannot land a stale shot's layers on top of the run's first shot.
@@ -1861,6 +1881,7 @@ export class SceneDirector {
       this.styleManager.setRecordingMode(true, {
         hidePanels: true,
         hudMode: 'full',
+        preserveHud: true,
         safeFrame: '16:9',
       });
     }
@@ -1911,6 +1932,7 @@ export class SceneDirector {
       runResult = { started: false, reason: 'run-failed' };
     } finally {
       this._finishRun();
+      if (preview && !token.cancelled) this._restoreSceneView();
     }
     return runResult;
   }
@@ -1986,7 +2008,12 @@ export class SceneDirector {
     if (scene && shot) this._publishSceneClock(scene, shot, snapshot.sceneElapsedSec, { running });
   }
 
-  stopScene(reason = msg('Stopped')) {
+  _restoreSceneView() {
+    return this._trackWork(this._viewSession.restore());
+  }
+
+  stopScene(reason = msg('Stopped'), { restore = true } = {}) {
+    if (restore && this._transport?.getState().visible) return this._transport.close(reason);
     this._setSceneMediaPlayback();
     this._interactions?.clear();
     this._dataPacks?.clear();
@@ -1998,11 +2025,13 @@ export class SceneDirector {
     this._cancelActiveSceneTravel();
     this.viewer.camera.cancelFlight();
     this._clock.stop();
-    if (!this._running || !this._runToken) return;
-    this._runToken.cancelled = true;
-    this._runAbort?.abort();
-    this._updateStatus(t(reason));
-    this._logEvent('scene_stopped', { reason });
+    if (this._running && this._runToken) {
+      this._runToken.cancelled = true;
+      this._runAbort?.abort();
+      this._updateStatus(t(reason));
+      this._logEvent('scene_stopped', { reason });
+    }
+    if (restore) return this._restoreSceneView();
   }
 
   /** Apply only the shot's declared packs through registered sources. */

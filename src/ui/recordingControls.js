@@ -33,8 +33,9 @@ export class RecordingControls {
       hudMode = 'minimal',
       safeFrame = '16:9',
     } = options;
+    const preserveHud = enabled ? options.preserveHud === true : this._recordingConfig.preserveHud === true;
     this._recordingMode = !!enabled;
-    this._recordingConfig = { hidePanels, hudMode, safeFrame };
+    this._recordingConfig = { hidePanels, hudMode, safeFrame, preserveHud };
 
     document.body.classList.toggle(
       'recording-mode',
@@ -49,7 +50,7 @@ export class RecordingControls {
       );
     }
 
-    if (this._recordingMode) {
+    if (this._recordingMode && !preserveHud) {
       // Snapshot the user's HUD state once per recording session so exit can
       // restore it (re-entrant calls must not capture mid-recording state).
       if (!this._preRecordingHudState) {
@@ -68,15 +69,15 @@ export class RecordingControls {
       } else {
         this.hud.setMode('auto');
       }
-    } else {
+    } else if (!this._recordingMode) {
       const saved = this._preRecordingHudState;
       this._preRecordingHudState = null;
-      if (saved) {
+      if (saved && !preserveHud) {
         this.hud.setVariant(saved.variant);
         if (this._hudLayoutSelect)
           this._hudLayoutSelect.value = this.hud.getVariant();
       }
-      this.hud.setMode(saved ? saved.mode : 'auto');
+      if (!preserveHud) this.hud.setMode(saved ? saved.mode : 'auto');
       if (this._safeFrameOverlay) {
         this._safeFrameOverlay.classList.remove(
           'active',
