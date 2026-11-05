@@ -43,10 +43,14 @@ export function _initGlobalContextPanel() {
           explicitUserAction: true,
           succeeded: succeeded === true,
         })
-      )
+      ) {
         this.actions.setPanelCollapsed('global-context-panel', false, {
           explicit: true,
         });
+        this._globalContextFlightsBtn.dispatchEvent(
+          new CustomEvent('gev:contacts-reveal-map', { bubbles: true }),
+        );
+      }
     });
   });
   this.listen(this._globalContextMissionsBtn, 'click', () => {

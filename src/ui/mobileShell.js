@@ -437,8 +437,23 @@ export function initMobileShell({
     measureSheet();
   };
 
+  let contactsWasExpanded = false;
+  const clearContactsCompact = () => {
+    body.removeAttribute('data-mobile-contacts-compact');
+    body.style.removeProperty('--mobile-contacts-compact-height');
+  };
+  const measureContactsCompact = () => {
+    if (!body.hasAttribute('data-mobile-contacts-compact')) return;
+    const rail = element('right-context-rail');
+    const panel = element('global-context-panel');
+    const controls = panel?.querySelector('.military-awareness-controls') || element('military-awareness-panel');
+    if (!rail || !panel || !controls) return;
+    const height = controls.getBoundingClientRect().bottom - rail.getBoundingClientRect().top + panel.scrollTop + 16;
+    body.style.setProperty('--mobile-contacts-compact-height', Math.ceil(height) + 'px');
+  };
   const setRailExpanded = (expanded) => {
     if (!['cameras', 'context'].includes(currentSheetOf(body))) return;
+    clearContactsCompact();
     if (expanded) body.setAttribute('data-mobile-rail-expanded', '');
     else body.removeAttribute('data-mobile-rail-expanded');
     measureSheet();
@@ -590,6 +605,7 @@ export function initMobileShell({
 
   const present = (sheet) => {
     sheetPeek?.clear();
+    clearContactsCompact();
     clearRailDrag();
     body.removeAttribute('data-mobile-rail-expanded');
     if (sheet) body.setAttribute(MOBILE_SHEET_ATTR, sheet);
@@ -791,7 +807,34 @@ export function initMobileShell({
       setSheet(null);
     },
   });
-  listen(element('mobile-context-handle'), 'click', () => sheetPeek?.collapse());
+  listen(documentRef, 'gev:contacts-reveal-map', () => {
+    if (!body.classList.contains(MOBILE_SHELL_CLASS) || currentSheetOf(body) !== 'context') return;
+    if (!body.hasAttribute('data-mobile-contacts-compact')) contactsWasExpanded = body.hasAttribute('data-mobile-rail-expanded');
+    sheetPeek?.clear();
+    body.removeAttribute('data-mobile-rail-expanded');
+    element('global-context-panel').scrollTop = 0;
+    body.setAttribute('data-mobile-contacts-compact', '');
+    measureContactsCompact();
+    measureSheet();
+  });
+  if (typeof ResizeObserverImpl === 'function') {
+    const contactsResize = new ResizeObserverImpl(measureContactsCompact);
+    for (const node of [element('mobile-context-header'), element('global-context-panel')?.querySelector('.global-context-panel-inner')]) {
+      if (node) contactsResize.observe(node);
+    }
+    removers.push(() => contactsResize.disconnect());
+  }
+  for (const id of ['global-context-flights-btn', 'global-context-missions-btn']) {
+    const button = element(id);
+    if (!button) continue;
+    listen(button, 'click', () => {
+      if (body.hasAttribute('data-mobile-contacts-compact')) setRailExpanded(contactsWasExpanded);
+    });
+  }
+  listen(element('mobile-context-handle'), 'click', () => {
+    if (body.hasAttribute('data-mobile-contacts-compact')) setRailExpanded(contactsWasExpanded);
+    else sheetPeek?.collapse();
+  });
   listen(element('mobile-context-close'), 'click', () => transitionSheet(null, tabFor('context')));
   const camerasPanel = initMobileCameras({
     documentRef,
@@ -1217,6 +1260,7 @@ export function initMobileShell({
         railHandle,
         height: root.getBoundingClientRect().height,
         expanded: body.hasAttribute('data-mobile-rail-expanded'),
+        compact: body.hasAttribute('data-mobile-contacts-compact'),
         id: touch.identifier,
         x: touch.clientX,
         y: touch.clientY,
@@ -1259,7 +1303,7 @@ export function initMobileShell({
       event.preventDefault();
       if (swipe.railHandle && (dy < 0 || swipe.expanded)) {
         const maximum = parseFloat(globalThis.getComputedStyle(swipe.root).maxHeight);
-        const minimum = (documentRef.defaultView?.innerHeight || globalThis.innerHeight || 0) * 0.45;
+        const minimum = swipe.compact ? swipe.height : (documentRef.defaultView?.innerHeight || globalThis.innerHeight || 0) * 0.45;
         body.setAttribute('data-mobile-rail-dragging', '');
         swipe.root.style.setProperty('height', `${Math.min(maximum, Math.max(minimum, swipe.height - dy))}px`);
       }
@@ -1282,7 +1326,7 @@ export function initMobileShell({
       const dy = touch.clientY - pull.y;
       if (pull.railHandle) {
         if (Math.abs(dy) < 48 || Math.abs(dy) <= dx * 1.25) return;
-        if (dy < 0) setRailExpanded(true);
+        if (dy < 0) setRailExpanded(pull.compact ? contactsWasExpanded : true);
         else if (pull.expanded) setRailExpanded(false);
         else sheetPeek?.collapse();
         return;

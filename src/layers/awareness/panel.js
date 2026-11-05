@@ -54,26 +54,31 @@ export function createPanel({ state: layerState, services, parts, source }) {
     }
     layerState.panelClickListener = (event) => {
       const action = event.target.closest('button[data-awareness-action]');
+      let focused = false;
       if (action) {
+        if (action.disabled) return;
         event.preventDefault();
         if (action.dataset.awarenessAction === 'previous')
-          parts.history.navigateHistory(-1, { origin: 'user' });
+          focused = parts.history.navigateHistory(-1, { origin: 'user' });
         if (action.dataset.awarenessAction === 'next')
-          parts.history.navigateHistory(1, { origin: 'user' });
+          focused = parts.history.navigateHistory(1, { origin: 'user' });
         if (action.dataset.awarenessAction === 'focus')
-          parts.focus.focusCurrentSubject({ origin: 'user' });
-        return;
+          focused = parts.focus.focusCurrentSubject({ origin: 'user' });
+      } else {
+        const target = event.target.closest(
+          'button[data-awareness-layer][data-awareness-id]',
+        );
+        if (!target || target.disabled) return;
+        event.preventDefault();
+        focused = parts.focus.requestFocus(
+          target.dataset.awarenessLayer,
+          target.dataset.awarenessId,
+          false,
+          { origin: 'user' },
+        );
       }
-      const target = event.target.closest(
-        'button[data-awareness-layer][data-awareness-id]',
-      );
-      if (!target) return;
-      event.preventDefault();
-      parts.focus.requestFocus(
-        target.dataset.awarenessLayer,
-        target.dataset.awarenessId,
-        false,
-        { origin: 'user' },
+      if (focused) panel.dispatchEvent(
+        new CustomEvent('gev:contacts-reveal-map', { bubbles: true }),
       );
     };
     panel.addEventListener('click', layerState.panelClickListener);

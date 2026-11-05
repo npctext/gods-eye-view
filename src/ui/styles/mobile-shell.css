@@ -635,6 +635,18 @@ body.mobile-shell .mobile-details-handle::before {
   border-radius: 0;
 }
 
+/* Keep keyboard focus on the visible grip, not the full-width drag button. */
+body.mobile-shell :is(button.mobile-details-handle, button:has(> .mobile-details-handle)):focus-visible {
+  outline: none !important;
+  box-shadow: none;
+}
+
+body.mobile-shell button.mobile-details-handle:focus-visible::before,
+body.mobile-shell button:focus-visible > .mobile-details-handle::before {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 body.mobile-shell .mobile-details-header {
   display: flex;
   align-items: center;
@@ -1005,20 +1017,24 @@ body.mobile-shell[data-mobile-sheet='context'] #right-context-rail {
   height: 45dvh;
   gap: 0;
   padding: 0;
+  overflow: hidden;
   transition: max-height var(--mobile-sheet-animation-duration) ease, height var(--mobile-sheet-animation-duration) ease, translate var(--mobile-sheet-animation-duration) ease;
 }
 body.mobile-shell[data-mobile-rail-expanded]:is([data-mobile-sheet='cameras'], [data-mobile-sheet='context']) #right-context-rail {
   height: var(--mobile-sheet-max-height);
 }
+body.mobile-shell[data-mobile-sheet='context'][data-mobile-contacts-compact] #right-context-rail {
+  height: min(var(--mobile-contacts-compact-height, 45dvh), var(--mobile-sheet-max-height));
+}
 body.mobile-shell[data-mobile-sheet='context'][data-mobile-rail-dragging] #right-context-rail { transition: none; }
 body.mobile-shell[data-mobile-sheet='context'] #right-context-rail > #mobile-context-header {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 3;
   display: block;
   flex: none;
   order: -1;
   padding-top: 14px;
+  border-bottom: 1px solid var(--mobile-sheet-divider-color);
   background: none;
 }
 body.mobile-shell #mobile-context-handle {
@@ -1042,15 +1058,22 @@ body.mobile-shell[data-mobile-sheet='context'] #right-context-rail > :is(#global
   height: auto;
   max-height: none;
 }
-body.mobile-shell[data-mobile-sheet='context'] #right-context-rail .global-context-panel-inner {
+body.mobile-shell[data-mobile-sheet='context'] #right-context-rail > #global-context-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: auto;
+}
+body.mobile-shell[data-mobile-sheet='context'] #right-context-rail #global-context-panel .global-context-panel-inner {
   height: auto;
   max-height: none;
   padding: 16px;
   border: 0;
   overflow: visible;
 }
-body.mobile-shell[data-mobile-sheet='context'] #right-context-rail .global-context-panel-inner > .panel-header { display: none; }
-body.mobile-shell[data-mobile-sheet='context'] #right-context-rail .global-context-panel-inner > .cyber-panel-body { overflow: visible; }
+body.mobile-shell[data-mobile-sheet='context'] #right-context-rail #global-context-panel .global-context-panel-inner > .panel-header { display: none; }
+body.mobile-shell[data-mobile-sheet='context'] #right-context-rail #global-context-panel .global-context-panel-inner > .cyber-panel-body { overflow: visible; }
 body.mobile-shell .mobile-tab-label { position: relative; }
 body.mobile-shell .mobile-tab-count {
   position: absolute;
@@ -1221,18 +1244,18 @@ body.mobile-shell[data-mobile-sheet='scenes'] .mobile-scene-content {
   scrollbar-gutter: auto;
 }
 /* Shared scrollbar for mobile Scenes and Layers. */
-body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #mobile-weather) {
+body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #mobile-weather) {
   scrollbar-width: thin;
   scrollbar-color: hsla(190.117647, 100%, 50%, 0.5) hsla(0, 0%, 100%, 0.04);
 }
-body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #mobile-weather)::-webkit-scrollbar {
+body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #mobile-weather)::-webkit-scrollbar {
   width: 3px;
 }
-body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #mobile-weather)::-webkit-scrollbar-track {
+body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #mobile-weather)::-webkit-scrollbar-track {
   background: hsla(0, 0%, 100%, 0.04);
   border-radius: 0;
 }
-body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #mobile-weather)::-webkit-scrollbar-thumb {
+body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #mobile-weather)::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, hsla(190.117647, 100%, 50%, 0.35), hsla(190.117647, 100%, 50%, 0.25));
   border-radius: 0;
 }
@@ -2569,6 +2592,18 @@ body.mobile-shell.cockpit-mode #mobile-details {
   display: none;
 }
 
+body.mobile-shell.cockpit-mode #cockpit-utility-controls {
+  display: none;
+}
+
+body.mobile-shell.cockpit-mode #view-switcher {
+  bottom: calc(var(--mobile-bottom-inset) + 16px);
+}
+
+body.mobile-shell.cockpit-mode #cockpit-hud :is(.cockpit-help, .cockpit-position-readout) {
+  bottom: calc(var(--mobile-bottom-inset) + 56px);
+}
+
 body.mobile-shell.ui-clean-view #command-dock,
 body.mobile-shell.cockpit-mode #command-dock {
   bottom: calc(var(--mobile-bottom-inset) + 10px);
@@ -2588,7 +2623,7 @@ body.mobile-shell.cockpit-mode #command-dock {
 
 /* Use pixel widths where supported; retain native thin scrollbars elsewhere. */
 @supports selector(::-webkit-scrollbar) {
-body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #mobile-weather) { scrollbar-width: auto; scrollbar-color: auto; }
+body.mobile-shell[data-mobile-sheet] :is(.mobile-scene-content, .data-toggle-list, .mobile-cameras-scroll, #global-context-panel, #mobile-weather) { scrollbar-width: auto; scrollbar-color: auto; }
 }
 
 /* Floating scene transport; independent of the navigation sheets. */
