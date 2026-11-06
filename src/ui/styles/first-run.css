@@ -3,7 +3,7 @@
    choice without blocking manual map interaction or spending API quota. */
 #first-run-launcher {
   position: fixed;
-  z-index: 175;
+  z-index: 185;
   top: 50%;
   left: 50%;
   width: min(34rem, calc(100vw - 2rem));

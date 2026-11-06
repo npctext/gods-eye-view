@@ -348,7 +348,7 @@ test('an overlay with NO class to watch still disarms the launcher', () => {
     /z-index: 200 !important/,
   );
   const launcher = css.slice(css.indexOf('#first-run-launcher {'));
-  assert.match(launcher.slice(0, launcher.indexOf('}')), /z-index: 175/);
+  assert.match(launcher.slice(0, launcher.indexOf('}')), /z-index: 185/);
 
   // Answered generically — a hit test at the card's own centre, NOT one more
   // class to keep in step with one more overlay.

@@ -10,7 +10,7 @@
   inset-inline-end: 0.9rem;
   inset-block-end: 0.9rem;
   /* Above the dock (145), the cockpit HUD and panel stacks (146–147);
-     below the first-run launcher (175) and Provider Settings (190). */
+     below the first-run launcher (185) and Provider Settings (190). */
   z-index: 150;
   display: flex;
   align-items: stretch;
