@@ -33,7 +33,10 @@ export function normalizeLayerLoading(layer = {}) {
   // normal operation, never a batch failure — mirrors layerFeedState's carve-out
   // so a prompt stored alongside the status cannot turn the chip red.
   const guidance = GUIDANCE_STATUSES.includes(status);
-  const error = stoppingInstallations
+  // Radio retains catalog diagnostics while off; they do not describe teardown.
+  const radioOff =
+    layer.id === 'radio' && (disabling || lifecycleState === 'disabled');
+  const error = stoppingInstallations || radioOff
     ? null
     : (!guidance && stats.error) ||
       stats.lastError ||
@@ -41,6 +44,7 @@ export function normalizeLayerLoading(layer = {}) {
       null;
   const unavailable =
     !stoppingInstallations &&
+    !radioOff &&
     (stats.unavailable === true ||
       stats.available === false ||
       ['unavailable', 'offline', 'down', 'error'].includes(status));

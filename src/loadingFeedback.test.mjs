@@ -747,3 +747,43 @@ test('ALPR retry success does not inherit its prior error, including turning the
   assert.equal(stopping.error, null);
   assert.equal(stopping.unavailable, false);
 });
+
+test('turning Radio off does not recycle catalog errors as a loading failure', () => {
+  for (const stats of [
+    { error: 'Radio directory coverage is degraded.', degraded: true },
+    { error: 'Radio directory is temporarily unavailable.' },
+    { lastError: 'Previous fetch failed' },
+    { managerRefreshError: 'Previous refresh failed' },
+    { status: 'unavailable', available: false },
+  ]) {
+    const radio = { id: 'radio', name: 'Radio', enabled: true, stats };
+    const stopping = aggregateLayerLoading([{ ...radio, lifecycleState: 'disabling' }]);
+    let state = reduceLoadingFeedback(createLoadingFeedbackState(), stopping, 0);
+    state = reduceLoadingFeedback(state, stopping, 200);
+    const off = aggregateLayerLoading([{ ...radio, enabled: false, lifecycleState: 'disabled' }]);
+    state = reduceLoadingFeedback(state, off, 250, { type: 'visibility', layerId: 'radio', enabled: false });
+    assert.equal(presentLoadingFeedback(state, off, 250).label, 'LIVE DATA OFF');
+  }
+});
+
+test('Radio feedback still reports a real load failure or failed disable transaction', () => {
+  const loading = aggregateLayerLoading([{ id: 'radio', lifecycleState: 'enabling' }]);
+  const pending = reduceLoadingFeedback(createLoadingFeedbackState(), loading, 0);
+  const failed = aggregateLayerLoading([{ id: 'radio', enabled: true, stats: { error: 'Directory unavailable' } }]);
+  const complete = reduceLoadingFeedback(pending, failed, 200, { type: 'visibility', layerId: 'radio', enabled: true });
+  assert.equal(presentLoadingFeedback(complete, failed, 200).label, 'LOAD FAILED');
+  const stopping = aggregateLayerLoading([{ id: 'radio', enabled: true, lifecycleState: 'disabling', stats: { error: 'Old catalog error' } }]);
+  const disabling = reduceLoadingFeedback(createLoadingFeedbackState(), stopping, 0);
+  const off = aggregateLayerLoading([{ id: 'radio', enabled: false }]);
+  const failure = reduceLoadingFeedback(disabling, off, 200, { type: 'visibility-failed', layerId: 'radio', enabled: false, error: new Error('Teardown failed') });
+  assert.equal(presentLoadingFeedback(failure, off, 200).label, 'LOAD FAILED');
+});
+
+test('turning Radio off does not hide another layer failure in the same batch', () => {
+  const radio = { id: 'radio', enabled: true, lifecycleState: 'disabling', stats: { error: 'Old catalog error' } };
+  const loading = aggregateLayerLoading([radio, { id: 'flights', lifecycleState: 'enabling' }]);
+  let state = reduceLoadingFeedback(createLoadingFeedbackState(), loading, 0);
+  const off = aggregateLayerLoading([{ ...radio, enabled: false, lifecycleState: 'disabled' }, { id: 'flights', enabled: true, stats: { error: 'Feed unavailable' } }]);
+  state = reduceLoadingFeedback(state, off, 200, { type: 'visibility', layerId: 'radio', enabled: false });
+  assert.equal(presentLoadingFeedback(state, off, 200).label, 'LOAD FAILED');
+});
